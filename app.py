@@ -33,7 +33,7 @@ with st.sidebar:
     uploaded_file = st.file_uploader(
         "Choose a CSV file",
         type="csv",
-        help="CSV should contain: merchant_code, latitude, longitude, mobile_bde_id_2"
+        help="CSV should contain: merchant_code, merchant_latitude, merchant_longitude, emp_id"
     )
     
     if uploaded_file is not None:
@@ -138,7 +138,7 @@ with st.sidebar:
                     
             else:
                 st.error(f"❌ CSV validation failed: {validation_result['error']}")
-                st.info("Required columns: merchant_code, latitude, longitude, mobile_bde_id_2")
+                st.info("Required columns: merchant_code, merchant_latitude, merchant_longitude, emp_id")
                 
         except Exception as e:
             st.error(f"❌ Error reading CSV file: {str(e)}")
@@ -206,7 +206,7 @@ if st.session_state.merchant_data is not None and 'selected_executive' in st.ses
                 popup_text = f"Merchant: {row['merchant_code']}<br>Status: Unassigned"
             
             folium.CircleMarker(
-                location=[row['latitude'], row['longitude']],
+                location=[row['merchant_latitude'], row['merchant_longitude']],
                 radius=8,
                 popup=folium.Popup(popup_text, max_width=300),
                 color='white',
@@ -217,7 +217,7 @@ if st.session_state.merchant_data is not None and 'selected_executive' in st.ses
             
             # Add merchant code as label
             folium.Marker(
-                location=[row['latitude'], row['longitude']],
+                location=[row['merchant_latitude'], row['merchant_longitude']],
                 icon=folium.DivIcon(
                     html=f'<div style="font-size: 10px; color: black; font-weight: bold; text-shadow: 1px 1px 1px white;">{row["merchant_code"]}</div>',
                     icon_size=(50, 20),
@@ -344,8 +344,8 @@ else:
     st.subheader("📋 Expected CSV Format")
     sample_data = pd.DataFrame({
         'merchant_code': ['M001', 'M002', 'M003'],
-        'latitude': [40.7128, 40.7589, 40.7505],
-        'longitude': [-74.0060, -73.9851, -73.9934],
-        'mobile_bde_id_2': ['SE001', 'SE002', 'SE001']
+        'merchant_latitude': [40.7128, 40.7589, 40.7505],
+        'merchant_longitude': [-74.0060, -73.9851, -73.9934],
+        'emp_id': ['SE001', 'SE002', 'SE001']
     })
     st.dataframe(sample_data, use_container_width=True)

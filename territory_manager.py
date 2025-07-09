@@ -81,8 +81,8 @@ class TerritoryManager:
             if distance <= radius_meters:
                 merchants_in_area.append({
                     'merchant_code': row['merchant_code'],
-                    'latitude': row['merchant_latitude'],
-                    'longitude': row['merchant_longitude'],
+                    'merchant_latitude': row['merchant_latitude'],
+                    'merchant_longitude': row['merchant_longitude'],
                     'distance': distance
                 })
         
@@ -112,11 +112,11 @@ class TerritoryManager:
                 
                 # Calculate center for this sub-circle (average of merchant positions)
                 if circle_merchants:
-                    avg_lat = sum(m['latitude'] for m in circle_merchants) / len(circle_merchants)
-                    avg_lon = sum(m['longitude'] for m in circle_merchants) / len(circle_merchants)
+                    avg_lat = sum(m['merchant_latitude'] for m in circle_merchants) / len(circle_merchants)
+                    avg_lon = sum(m['merchant_longitude'] for m in circle_merchants) / len(circle_merchants)
                     
                     # Calculate radius needed to include all merchants in this sub-circle
-                    max_distance = max(self.haversine_distance(avg_lat, avg_lon, m['latitude'], m['longitude']) 
+                    max_distance = max(self.haversine_distance(avg_lat, avg_lon, m['merchant_latitude'], m['merchant_longitude']) 
                                      for m in circle_merchants)
                     sub_radius = max_distance * 1.2  # Add 20% buffer
                     
