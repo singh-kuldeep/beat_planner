@@ -368,7 +368,21 @@ with st.sidebar:
                 st.info("Automatically create optimal visit circles with alphabetical naming (A, B, C, etc.)")
                 
                 if selected_executives:
-                    auto_executive = st.selectbox("Executive for Auto-Recommendation:", options=selected_executives, key="auto_exec")
+                    # Option to select one or multiple executives
+                    auto_mode = st.radio(
+                        "Auto-recommendation mode:",
+                        ["Single Executive", "All Selected Executives"],
+                        horizontal=True,
+                        key="auto_mode"
+                    )
+                    
+                    if auto_mode == "Single Executive":
+                        auto_executive = st.selectbox("Executive for Auto-Recommendation:", options=selected_executives, key="auto_exec")
+                        auto_executives_list = [auto_executive]
+                    else:
+                        auto_executives_list = selected_executives
+                        st.write(f"**Will generate for:** {', '.join(auto_executives_list)}")
+                    
                     auto_col1, auto_col2 = st.columns(2)
                     
                     with auto_col1:
@@ -376,40 +390,67 @@ with st.sidebar:
                         auto_max_merchants = st.number_input("Max merchants per auto circle:", min_value=1, max_value=50, value=15, key="auto_max")
                     
                     with auto_col2:
-                        auto_color = st.color_picker("Auto Circle Color:", "#00FF00", key="auto_color")
                         auto_base_name = st.text_input("Base name for circles:", value="Day", key="auto_base")
+                        if auto_mode == "Single Executive":
+                            auto_color = st.color_picker("Auto Circle Color:", "#00FF00", key="auto_color")
+                        else:
+                            st.info("Colors will be auto-assigned per executive")
                     
                     if st.button("🤖 Generate Auto Recommendations", type="primary"):
-                        auto_filtered_data = df[df['emp_id'] == auto_executive]
+                        total_circles_created = 0
+                        results = []
                         
-                        if len(auto_filtered_data) > 0:
-                            # Get merchants not already assigned to any circle for this executive
-                            assigned_merchants = set()
-                            for territory in st.session_state.territories:
-                                if territory.get('executive') == auto_executive:
-                                    assigned_merchants.update(territory['merchants'])
+                        # Color palette for multiple executives
+                        colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FECA57", "#FF9FF3", "#54A0FF", "#5F27CD"]
+                        
+                        for idx, exec_name in enumerate(auto_executives_list):
+                            auto_filtered_data = df[df['emp_id'] == exec_name]
                             
-                            unassigned_data = auto_filtered_data[
-                                ~auto_filtered_data['merchant_code'].isin(assigned_merchants)
-                            ]
-                            
-                            if len(unassigned_data) > 0:
-                                auto_circles = st.session_state.territory_manager.create_auto_recommended_circles(
-                                    unassigned_data, 
-                                    auto_radius_km * 1000, 
-                                    auto_max_merchants, 
-                                    auto_base_name, 
-                                    auto_color,
-                                    auto_executive
-                                )
+                            if len(auto_filtered_data) > 0:
+                                # Get merchants not already assigned to any circle for this executive
+                                assigned_merchants = set()
+                                for territory in st.session_state.territories:
+                                    if territory.get('executive') == exec_name:
+                                        assigned_merchants.update(territory['merchants'])
                                 
-                                st.session_state.territories.extend(auto_circles)
-                                st.success(f"✅ Created {len(auto_circles)} auto-recommended circles for {auto_executive}")
-                                st.rerun()
+                                unassigned_data = auto_filtered_data[
+                                    ~auto_filtered_data['merchant_code'].isin(assigned_merchants)
+                                ]
+                                
+                                if len(unassigned_data) > 0:
+                                    # Use different color for each executive if multiple mode
+                                    if auto_mode == "All Selected Executives":
+                                        exec_color = colors[idx % len(colors)]
+                                    else:
+                                        exec_color = auto_color
+                                    
+                                    auto_circles = st.session_state.territory_manager.create_auto_recommended_circles(
+                                        unassigned_data, 
+                                        auto_radius_km * 1000, 
+                                        auto_max_merchants, 
+                                        auto_base_name, 
+                                        exec_color,
+                                        exec_name
+                                    )
+                                    
+                                    st.session_state.territories.extend(auto_circles)
+                                    total_circles_created += len(auto_circles)
+                                    results.append(f"✅ {exec_name}: {len(auto_circles)} circles ({len(unassigned_data)} merchants)")
+                                else:
+                                    results.append(f"⚠️ {exec_name}: All merchants already assigned")
                             else:
-                                st.warning(f"All merchants for {auto_executive} are already assigned to circles")
+                                results.append(f"❌ {exec_name}: No merchant data found")
+                        
+                        # Display results
+                        if total_circles_created > 0:
+                            st.success(f"🎉 Created {total_circles_created} total auto-recommended circles!")
+                            for result in results:
+                                st.write(result)
+                            st.rerun()
                         else:
-                            st.warning(f"No merchant data found for {auto_executive}")
+                            st.warning("No new circles were created")
+                            for result in results:
+                                st.write(result)
                 
                 # Circle management for selected executives
                 if selected_executives:
