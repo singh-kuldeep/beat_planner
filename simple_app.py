@@ -460,6 +460,9 @@ with st.sidebar:
                         st.write(f"**Circles for {exec_name}:**")
                         exec_circles = [t for t in st.session_state.territories if t.get('executive') == exec_name]
                         
+                        # Sort circles alphabetically by name
+                        exec_circles.sort(key=lambda x: x['name'])
+                        
                         if exec_circles:
                             for i, circle in enumerate(exec_circles):
                                 col1, col2, col3, col4 = st.columns([2, 1, 1, 1])

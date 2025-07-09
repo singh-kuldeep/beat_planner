@@ -191,8 +191,11 @@ class TerritoryManager:
         export_df['circle_radius_meters'] = None
         export_df['circle_color'] = None
         
+        # Sort territories alphabetically by name for consistent export order
+        sorted_territories = sorted(territories, key=lambda x: x['name'])
+        
         # Assign visit circles (last assignment wins in case of overlap)
-        for circle in territories:
+        for circle in sorted_territories:
             for merchant_code in circle['merchants']:
                 mask = export_df['merchant_code'] == merchant_code
                 export_df.loc[mask, 'visit_day'] = circle['name']
