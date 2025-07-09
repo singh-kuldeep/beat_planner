@@ -104,7 +104,7 @@ with st.sidebar:
                         st.success(f"Ready! Click on map to create visit circle for {visit_day}")
                         st.info("You can adjust the circle size later using the Edit button")
                     
-                    # Auto-recommendation section
+                    # Auto-recommendation section for individual executive
                     st.subheader("🤖 Auto Recommend Circles")
                     st.info("Automatically create optimal visit circles with alphabetical naming (A, B, C, etc.)")
                     
@@ -157,6 +157,78 @@ with st.sidebar:
                                 if t.get('executive') != selected_executive
                             ]
                             st.success("Cleared all circles")
+                            st.rerun()
+                
+                else:
+                    # Auto-recommendation section for ALL executives
+                    st.subheader("🤖 Auto Recommend Circles for All Executives")
+                    st.info("Create optimal visit circles for ALL sales executives at once")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        radius_km_all = st.slider("Circle Radius (km) for all:", 0.5, 30.0, 2.0, 0.5, key="radius_all")
+                        max_merchants_all = st.number_input("Max merchants per circle for all:", min_value=1, max_value=50, value=10, key="merchants_all")
+                    with col2:
+                        base_name_all = st.text_input("Base name for circles:", placeholder="Day", value="Day", key="base_all")
+                        
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        if st.button("🎯 Auto Recommend for ALL Executives", type="primary"):
+                            if base_name_all.strip():
+                                # Get all unique executives
+                                executives = st.session_state.merchant_data['mobile_bde_id_2'].unique()
+                                total_circles_created = 0
+                                total_merchants_assigned = 0
+                                
+                                # Color palette for different executives
+                                colors = ["#FF0000", "#00FF00", "#0000FF", "#FFA500", "#800080", "#FFC0CB", "#A52A2A", "#008000"]
+                                
+                                for idx, executive in enumerate(executives):
+                                    # Get data for this executive
+                                    exec_data = st.session_state.merchant_data[
+                                        st.session_state.merchant_data['mobile_bde_id_2'] == executive
+                                    ]
+                                    
+                                    # Get unassigned merchants for this executive
+                                    unassigned_merchants = exec_data.copy()
+                                    
+                                    # Remove already assigned merchants
+                                    assigned_merchant_codes = set()
+                                    for territory in st.session_state.territories:
+                                        if territory.get('executive') == executive:
+                                            assigned_merchant_codes.update(territory['merchants'])
+                                    
+                                    unassigned_merchants = unassigned_merchants[
+                                        ~unassigned_merchants['merchant_code'].isin(assigned_merchant_codes)
+                                    ]
+                                    
+                                    if len(unassigned_merchants) > 0:
+                                        # Use different color for each executive
+                                        exec_color = colors[idx % len(colors)]
+                                        
+                                        # Create auto-recommended circles for this executive
+                                        auto_circles = st.session_state.territory_manager.create_auto_recommended_circles(
+                                            unassigned_merchants, radius_km_all * 1000, max_merchants_all, 
+                                            base_name_all.strip(), exec_color, executive
+                                        )
+                                        
+                                        # Add to territories
+                                        st.session_state.territories.extend(auto_circles)
+                                        total_circles_created += len(auto_circles)
+                                        total_merchants_assigned += sum(c['merchant_count'] for c in auto_circles)
+                                
+                                if total_circles_created > 0:
+                                    st.success(f"✅ Created {total_circles_created} circles across all executives, covering {total_merchants_assigned} merchants")
+                                    st.rerun()
+                                else:
+                                    st.warning("No unassigned merchants found for any executive")
+                            else:
+                                st.error("Please enter a base name for the circles")
+                    
+                    with col2:
+                        if st.button("🗑️ Clear All Executive Circles", help="Clear all circles for ALL executives"):
+                            st.session_state.territories = []
+                            st.success("Cleared all circles for all executives")
                             st.rerun()
                 
                 # Existing circles management
