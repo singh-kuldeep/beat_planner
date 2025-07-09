@@ -64,7 +64,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Requirements
 - **Input Format**: CSV files with specific schema
-- **Required Fields**: merchant_code, latitude, longitude, emp_id
+- **Required Fields**: merchant_code, merchant_latitude, merchant_longitude, emp_id
 - **Geographic Data**: WGS84 coordinate system (decimal degrees)
 
 ## Deployment Strategy

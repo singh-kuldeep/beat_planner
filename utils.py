@@ -11,7 +11,7 @@ def validate_csv_format(df):
     Returns:
         Dictionary with validation result
     """
-    required_columns = ['merchant_code', 'latitude', 'longitude', 'emp_id']
+    required_columns = ['merchant_code', 'merchant_latitude', 'merchant_longitude', 'emp_id']
     
     # Optional columns for existing circles
     optional_columns = ['visit_day', 'circle_name', 'circle_center_lat', 'circle_center_lon', 'circle_radius_meters', 'circle_color']
@@ -48,30 +48,30 @@ def validate_csv_format(df):
     # Validate latitude and longitude ranges
     try:
         # Convert to numeric if they're strings
-        df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
-        df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
+        df['merchant_latitude'] = pd.to_numeric(df['merchant_latitude'], errors='coerce')
+        df['merchant_longitude'] = pd.to_numeric(df['merchant_longitude'], errors='coerce')
         
         # Check for conversion errors
-        if df['latitude'].isnull().any() or df['longitude'].isnull().any():
+        if df['merchant_latitude'].isnull().any() or df['merchant_longitude'].isnull().any():
             return {
                 'valid': False,
-                'error': "Invalid latitude or longitude values (must be numeric)"
+                'error': "Invalid merchant_latitude or merchant_longitude values (must be numeric)"
             }
         
         # Check latitude range (-90 to 90)
-        invalid_lat = df[(df['latitude'] < -90) | (df['latitude'] > 90)]
+        invalid_lat = df[(df['merchant_latitude'] < -90) | (df['merchant_latitude'] > 90)]
         if len(invalid_lat) > 0:
             return {
                 'valid': False,
-                'error': f"Invalid latitude values (must be between -90 and 90): {len(invalid_lat)} rows"
+                'error': f"Invalid merchant_latitude values (must be between -90 and 90): {len(invalid_lat)} rows"
             }
         
         # Check longitude range (-180 to 180)
-        invalid_lon = df[(df['longitude'] < -180) | (df['longitude'] > 180)]
+        invalid_lon = df[(df['merchant_longitude'] < -180) | (df['merchant_longitude'] > 180)]
         if len(invalid_lon) > 0:
             return {
                 'valid': False,
-                'error': f"Invalid longitude values (must be between -180 and 180): {len(invalid_lon)} rows"
+                'error': f"Invalid merchant_longitude values (must be between -180 and 180): {len(invalid_lon)} rows"
             }
             
     except Exception as e:
@@ -105,8 +105,8 @@ def calculate_map_center(df):
         return 40.7128, -74.0060  # New York City
     
     # Calculate the geographic center
-    center_lat = df['latitude'].mean()
-    center_lon = df['longitude'].mean()
+    center_lat = df['merchant_latitude'].mean()
+    center_lon = df['merchant_longitude'].mean()
     
     return center_lat, center_lon
 
@@ -123,19 +123,19 @@ def clean_merchant_data(df):
     df_clean = df.copy()
     
     # Remove leading/trailing whitespace from string columns
-    string_columns = ['merchant_code', 'mobile_bde_id_2']
+    string_columns = ['merchant_code', 'emp_id']
     for col in string_columns:
         if col in df_clean.columns:
             df_clean[col] = df_clean[col].astype(str).str.strip()
     
     # Ensure numeric columns are properly typed
-    numeric_columns = ['latitude', 'longitude']
+    numeric_columns = ['merchant_latitude', 'merchant_longitude']
     for col in numeric_columns:
         if col in df_clean.columns:
             df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
     
     # Remove rows with invalid coordinates
-    df_clean = df_clean.dropna(subset=['latitude', 'longitude'])
+    df_clean = df_clean.dropna(subset=['merchant_latitude', 'merchant_longitude'])
     
     return df_clean
 

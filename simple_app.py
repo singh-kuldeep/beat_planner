@@ -57,7 +57,7 @@ def _display_executive_map(selected_executive, filtered_data):
                 popup_text = f"Merchant: {row['merchant_code']}<br>Status: Unassigned"
             
             folium.CircleMarker(
-                location=[row['latitude'], row['longitude']],
+                location=[row['merchant_latitude'], row['merchant_longitude']],
                 radius=6,
                 popup=popup_text,
                 color='white',
@@ -296,7 +296,7 @@ with st.sidebar:
     uploaded_file = st.file_uploader(
         "Choose CSV file",
         type="csv",
-        help="Required columns: merchant_code, latitude, longitude, emp_id"
+        help="Required columns: merchant_code, merchant_latitude, merchant_longitude, emp_id"
     )
     
     if uploaded_file is not None:
@@ -520,8 +520,8 @@ else:
     st.subheader("Expected CSV Format")
     sample_data = pd.DataFrame({
         'merchant_code': ['M001', 'M002', 'M003'],
-        'latitude': [28.6139, 28.7041, 28.5355],
-        'longitude': [77.2090, 77.1025, 77.3910],
+        'merchant_latitude': [28.6139, 28.7041, 28.5355],
+        'merchant_longitude': [77.2090, 77.1025, 77.3910],
         'emp_id': ['SE001', 'SE002', 'SE001']
     })
     st.dataframe(sample_data)

@@ -44,7 +44,7 @@ class TerritoryManager:
         for idx, row in merchant_data.iterrows():
             distance = self.haversine_distance(
                 center_lat, center_lon,
-                row['latitude'], row['longitude']
+                row['merchant_latitude'], row['merchant_longitude']
             )
             
             if distance <= radius_meters:
@@ -75,14 +75,14 @@ class TerritoryManager:
         for idx, row in merchant_data.iterrows():
             distance = self.haversine_distance(
                 center_lat, center_lon,
-                row['latitude'], row['longitude']
+                row['merchant_latitude'], row['merchant_longitude']
             )
             
             if distance <= radius_meters:
                 merchants_in_area.append({
                     'merchant_code': row['merchant_code'],
-                    'latitude': row['latitude'],
-                    'longitude': row['longitude'],
+                    'latitude': row['merchant_latitude'],
+                    'longitude': row['merchant_longitude'],
                     'distance': distance
                 })
         
@@ -323,8 +323,8 @@ class TerritoryManager:
         
         while len(remaining_merchants) > 0:
             # Find the best starting point (center of remaining merchants)
-            center_lat = remaining_merchants['latitude'].mean()
-            center_lon = remaining_merchants['longitude'].mean()
+            center_lat = remaining_merchants['merchant_latitude'].mean()
+            center_lon = remaining_merchants['merchant_longitude'].mean()
             
             # Alternatively, start with the merchant that has the most neighbors
             best_center_lat, best_center_lon = self._find_optimal_center(remaining_merchants, radius_meters)
@@ -338,8 +338,8 @@ class TerritoryManager:
             if len(merchants_in_circle) == 0:
                 # Take the first remaining merchant as center
                 first_merchant = remaining_merchants.iloc[0]
-                best_center_lat = first_merchant['latitude']
-                best_center_lon = first_merchant['longitude']
+                best_center_lat = first_merchant['merchant_latitude']
+                best_center_lon = first_merchant['merchant_longitude']
                 merchants_in_circle = self.get_merchants_in_circle(
                     remaining_merchants, best_center_lat, best_center_lon, radius_meters
                 )
@@ -352,7 +352,7 @@ class TerritoryManager:
                     merchant_row = remaining_merchants[remaining_merchants['merchant_code'] == merchant_code].iloc[0]
                     distance = self.haversine_distance(
                         best_center_lat, best_center_lon,
-                        merchant_row['latitude'], merchant_row['longitude']
+                        merchant_row['merchant_latitude'], merchant_row['merchant_longitude']
                     )
                     merchant_distances.append((merchant_code, distance))
                 
@@ -399,12 +399,12 @@ class TerritoryManager:
         Returns:
             Tuple of (optimal_lat, optimal_lon)
         """
-        best_lat, best_lon = merchant_data['latitude'].mean(), merchant_data['longitude'].mean()
+        best_lat, best_lon = merchant_data['merchant_latitude'].mean(), merchant_data['merchant_longitude'].mean()
         max_merchants = 0
         
         # Try each merchant as a potential center
         for idx, row in merchant_data.iterrows():
-            center_lat, center_lon = row['latitude'], row['longitude']
+            center_lat, center_lon = row['merchant_latitude'], row['merchant_longitude']
             
             # Count merchants within radius
             merchants_in_circle = self.get_merchants_in_circle(
