@@ -284,6 +284,9 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
         try:
             map_data = st_folium(m, width=700, height=500, returned_objects=["last_clicked", "all_drawings", "markers"])
             
+            # Initialize moved_circles list
+            moved_circles = []
+            
             # Handle marker position updates with manual reassignment
             if map_data.get('markers') and len(map_data['markers']) > 0:
                 exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
@@ -302,7 +305,6 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                         })
                 
                 # Check for moved circles and show reassignment buttons
-                moved_circles = []
                 for pos in current_positions:
                     lat_diff = abs(pos['new_lat'] - pos['old_lat'])
                     lon_diff = abs(pos['new_lon'] - pos['old_lon'])
@@ -364,6 +366,10 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
             if map_data['last_clicked'] and not moved_circles:
                 clicked_lat = map_data['last_clicked']['lat']
                 clicked_lon = map_data['last_clicked']['lng']
+                
+                # Debug output
+                st.write(f"Click detected at: {clicked_lat:.4f}, {clicked_lon:.4f}")
+                st.write(f"Visit day: '{visit_day}', Move mode: {st.session_state.move_mode}")
                 
                 # Check if in move mode
                 if st.session_state.move_mode and st.session_state.selected_circle_to_move is not None:
