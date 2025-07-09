@@ -296,7 +296,7 @@ with st.sidebar:
     uploaded_file = st.file_uploader(
         "Choose CSV file",
         type="csv",
-        help="Required columns: merchant_code, latitude, longitude, mobile_bde_id_2"
+        help="Required columns: merchant_code, latitude, longitude, emp_id"
     )
     
     if uploaded_file is not None:
@@ -324,7 +324,7 @@ with st.sidebar:
                                 'color': row.get('circle_color', '#FF0000'),
                                 'merchants': merchants_in_circle,
                                 'merchant_count': len(merchants_in_circle),
-                                'executive': row.get('mobile_bde_id_2', 'Unknown')
+                                'executive': row.get('emp_id', 'Unknown')
                             })
                     
                     if existing_circles:
@@ -332,7 +332,7 @@ with st.sidebar:
                         st.info(f"📍 Found {len(existing_circles)} existing visit circles in your data")
                 
                 # Get unique sales executives for selection
-                sales_executives = df['mobile_bde_id_2'].unique().tolist()
+                sales_executives = df['emp_id'].unique().tolist()
                 selected_executives = st.multiselect(
                     "Select Sales Executives:",
                     options=sales_executives,
@@ -380,7 +380,7 @@ with st.sidebar:
                         auto_base_name = st.text_input("Base name for circles:", value="Day", key="auto_base")
                     
                     if st.button("🤖 Generate Auto Recommendations", type="primary"):
-                        auto_filtered_data = df[df['mobile_bde_id_2'] == auto_executive]
+                        auto_filtered_data = df[df['emp_id'] == auto_executive]
                         
                         if len(auto_filtered_data) > 0:
                             # Get merchants not already assigned to any circle for this executive
@@ -464,7 +464,7 @@ with st.sidebar:
                                             st.session_state.territories[original_index]['radius'] = new_radius_km * 1000
                                             
                                             # Recalculate merchants in updated circle
-                                            filtered_data = df[df['mobile_bde_id_2'] == exec_name]
+                                            filtered_data = df[df['emp_id'] == exec_name]
                                             new_merchants = st.session_state.territory_manager.get_merchants_in_circle(
                                                 filtered_data, circle['center_lat'], circle['center_lon'], new_radius_km * 1000
                                             )
@@ -495,7 +495,7 @@ if st.session_state.merchant_data is not None and 'selected_executives' in local
         # Single executive - no tabs needed
         selected_executive = selected_executives[0]
         filtered_data = st.session_state.merchant_data[
-            st.session_state.merchant_data['mobile_bde_id_2'] == selected_executive
+            st.session_state.merchant_data['emp_id'] == selected_executive
         ]
         
         _display_executive_map(selected_executive, filtered_data)
@@ -506,7 +506,7 @@ if st.session_state.merchant_data is not None and 'selected_executives' in local
         for i, executive in enumerate(selected_executives):
             with tabs[i]:
                 filtered_data = st.session_state.merchant_data[
-                    st.session_state.merchant_data['mobile_bde_id_2'] == executive
+                    st.session_state.merchant_data['emp_id'] == executive
                 ]
                 if len(filtered_data) > 0:
                     _display_executive_map(executive, filtered_data)
@@ -522,6 +522,6 @@ else:
         'merchant_code': ['M001', 'M002', 'M003'],
         'latitude': [28.6139, 28.7041, 28.5355],
         'longitude': [77.2090, 77.1025, 77.3910],
-        'mobile_bde_id_2': ['SE001', 'SE002', 'SE001']
+        'emp_id': ['SE001', 'SE002', 'SE001']
     })
     st.dataframe(sample_data)

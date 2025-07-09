@@ -11,7 +11,7 @@ def validate_csv_format(df):
     Returns:
         Dictionary with validation result
     """
-    required_columns = ['merchant_code', 'latitude', 'longitude', 'mobile_bde_id_2']
+    required_columns = ['merchant_code', 'latitude', 'longitude', 'emp_id']
     
     # Optional columns for existing circles
     optional_columns = ['visit_day', 'circle_name', 'circle_center_lat', 'circle_center_lon', 'circle_radius_meters', 'circle_color']
