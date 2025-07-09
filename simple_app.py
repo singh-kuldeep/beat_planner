@@ -196,9 +196,9 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
         # Map instructions
         st.info("""
         **Map Controls:**
-        • Red markers with move icon = Drag these to move circles around
+        • Red markers = Drag these to move circles, then click "Reassign" button
         • Click empty areas to create new circles
-        • Dragging automatically updates merchant assignments
+        • Blue dots = Unassigned merchants, Colored dots = Assigned merchants
         """)
         
         # Show mode indicators
@@ -284,40 +284,84 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
         try:
             map_data = st_folium(m, width=700, height=500, returned_objects=["last_clicked", "all_drawings", "markers"])
             
-            # Handle drag events from markers
-            drag_update_made = False
+            # Handle marker position updates with manual reassignment
             if map_data.get('markers') and len(map_data['markers']) > 0:
                 exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
                 
-                # Check for marker position changes (drag events)
+                # Store current marker positions for comparison
+                current_positions = []
                 for marker_idx, marker in enumerate(map_data['markers']):
                     if marker_idx < len(exec_circles):
-                        original_circle = exec_circles[marker_idx]
-                        new_lat = marker['lat']
-                        new_lon = marker['lng']
-                        
-                        # Check if position changed significantly (avoid tiny movements)
-                        lat_diff = abs(new_lat - original_circle['center_lat'])
-                        lon_diff = abs(new_lon - original_circle['center_lon'])
-                        
-                        if lat_diff > 0.001 or lon_diff > 0.001:  # Threshold for meaningful movement
-                            # Update circle position
-                            original_index = st.session_state.territories.index(original_circle)
-                            st.session_state.territories[original_index]['center_lat'] = new_lat
-                            st.session_state.territories[original_index]['center_lon'] = new_lon
+                        current_positions.append({
+                            'index': marker_idx,
+                            'circle_name': exec_circles[marker_idx]['name'],
+                            'old_lat': exec_circles[marker_idx]['center_lat'],
+                            'old_lon': exec_circles[marker_idx]['center_lon'],
+                            'new_lat': marker['lat'],
+                            'new_lon': marker['lng']
+                        })
+                
+                # Check for moved circles and show reassignment buttons
+                moved_circles = []
+                for pos in current_positions:
+                    lat_diff = abs(pos['new_lat'] - pos['old_lat'])
+                    lon_diff = abs(pos['new_lon'] - pos['old_lon'])
+                    
+                    if lat_diff > 0.001 or lon_diff > 0.001:  # Threshold for meaningful movement
+                        moved_circles.append(pos)
+                
+                # Show reassignment buttons for moved circles
+                if moved_circles:
+                    st.warning(f"Detected {len(moved_circles)} moved circle(s). Click to reassign merchants:")
+                    
+                    # Reassign all button if multiple circles moved
+                    if len(moved_circles) > 1:
+                        if st.button("🔄 Reassign All Moved Circles", type="primary"):
+                            for pos in moved_circles:
+                                circle_idx = pos['index']
+                                original_circle = exec_circles[circle_idx]
+                                original_index = st.session_state.territories.index(original_circle)
+                                
+                                st.session_state.territories[original_index]['center_lat'] = pos['new_lat']
+                                st.session_state.territories[original_index]['center_lon'] = pos['new_lon']
+                                
+                                # Recalculate merchants in moved circle
+                                new_merchants = st.session_state.territory_manager.get_merchants_in_circle(
+                                    filtered_data, pos['new_lat'], pos['new_lon'], original_circle['radius']
+                                )
+                                st.session_state.territories[original_index]['merchants'] = new_merchants
+                                st.session_state.territories[original_index]['merchant_count'] = len(new_merchants)
                             
-                            # Recalculate merchants in moved circle
-                            new_merchants = st.session_state.territory_manager.get_merchants_in_circle(
-                                filtered_data, new_lat, new_lon, original_circle['radius']
-                            )
-                            st.session_state.territories[original_index]['merchants'] = new_merchants
-                            st.session_state.territories[original_index]['merchant_count'] = len(new_merchants)
-                            
-                            drag_update_made = True
-                            st.success(f"✅ Moved '{original_circle['name']}' - now has {len(new_merchants)} merchants")
+                            st.success(f"Reassigned all {len(moved_circles)} moved circles")
+                            st.rerun()
+                    
+                    # Individual reassignment buttons
+                    for pos in moved_circles:
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            st.write(f"**{pos['circle_name']}** has been moved")
+                        with col2:
+                            if st.button(f"Reassign", key=f"reassign_{pos['index']}"):
+                                # Update circle position
+                                circle_idx = pos['index']
+                                original_circle = exec_circles[circle_idx]
+                                original_index = st.session_state.territories.index(original_circle)
+                                
+                                st.session_state.territories[original_index]['center_lat'] = pos['new_lat']
+                                st.session_state.territories[original_index]['center_lon'] = pos['new_lon']
+                                
+                                # Recalculate merchants in moved circle
+                                new_merchants = st.session_state.territory_manager.get_merchants_in_circle(
+                                    filtered_data, pos['new_lat'], pos['new_lon'], original_circle['radius']
+                                )
+                                st.session_state.territories[original_index]['merchants'] = new_merchants
+                                st.session_state.territories[original_index]['merchant_count'] = len(new_merchants)
+                                
+                                st.success(f"Reassigned '{pos['circle_name']}' - now has {len(new_merchants)} merchants")
+                                st.rerun()
             
             # Handle map clicks for new circle creation
-            if map_data['last_clicked'] and not drag_update_made:
+            if map_data['last_clicked'] and not moved_circles:
                 clicked_lat = map_data['last_clicked']['lat']
                 clicked_lon = map_data['last_clicked']['lng']
                 
@@ -374,10 +418,6 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                             st.info(f"• {circle['name']}: {circle['merchant_count']} merchants")
                     
                     st.rerun()
-            
-            # Auto-refresh if drag update was made
-            if drag_update_made:
-                st.rerun()
                 
         except Exception as e:
             st.error(f"Map loading error: {str(e)}")
