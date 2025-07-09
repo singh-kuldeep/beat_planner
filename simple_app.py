@@ -106,8 +106,13 @@ with st.sidebar:
                 with col2:
                     if st.button("🎯 Auto Recommend Circles", type="primary"):
                         if base_name.strip():
+                            # Get filtered data for this executive
+                            exec_data = st.session_state.merchant_data[
+                                st.session_state.merchant_data['mobile_bde_id_2'] == selected_executive
+                            ]
+                            
                             # Get all unassigned merchants for this executive
-                            unassigned_merchants = filtered_data.copy()
+                            unassigned_merchants = exec_data.copy()
                             
                             # Remove already assigned merchants
                             assigned_merchant_codes = set()
