@@ -75,220 +75,131 @@ with st.sidebar:
                 # Sales executive dropdown
                 st.subheader("Select Sales Executive")
                 sales_executives = sorted(df['mobile_bde_id_2'].unique())
-                
-                # Add "All Sales Persons" option
-                all_options = ["All Sales Persons"] + sales_executives
                 selected_executive = st.selectbox(
                     "Sales Executive:",
-                    options=all_options
+                    options=sales_executives
                 )
                 
                 # Visit circle creation
-                if selected_executive != "All Sales Persons":
-                    st.subheader("Create Visit Circle")
-                    st.info("A visit circle represents the area a sales person will cover in one day")
-                else:
-                    st.subheader("Circle Creation")
-                    st.info("ℹ️ Manual circle creation available for individual executives. Auto-recommendation for all executives available below.")
+                st.subheader("Create Visit Circle")
+                st.info("A visit circle represents the area a sales person will cover in one day")
                 
-                if selected_executive != "All Sales Persons":
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        visit_day = st.text_input("Visit Day/Name:", placeholder="e.g., Monday, Day1, Circle_1")
-                        radius_km = st.slider("Circle Radius (km):", 0.5, 30.0, 2.0, 0.5)
-                    with col2:
-                        circle_color = st.color_picker("Circle Color:", "#FF0000")
-                        max_merchants_per_circle = st.number_input("Max merchants per circle:", min_value=1, max_value=50, value=10)
-                    
-                    if visit_day:
-                        st.success(f"Ready! Click on map to create visit circle for {visit_day}")
-                        st.info("You can adjust the circle size later using the Edit button")
-                    
-                    # Auto-recommendation section for individual executive
-                    st.subheader("🤖 Auto Recommend Circles")
-                    st.info("Automatically create optimal visit circles with alphabetical naming (A, B, C, etc.)")
-                    
-                    col1, col2, col3 = st.columns([2, 2, 1])
-                    with col1:
-                        base_name = st.text_input("Base name for circles:", placeholder="Day", value="Day")
-                    with col2:
-                        if st.button("🎯 Auto Recommend Circles", type="primary"):
-                            if base_name.strip():
-                                # Get filtered data for this executive
-                                exec_data = st.session_state.merchant_data[
-                                    st.session_state.merchant_data['mobile_bde_id_2'] == selected_executive
-                                ]
-                                
-                                # Get all unassigned merchants for this executive
-                                unassigned_merchants = exec_data.copy()
-                                
-                                # Remove already assigned merchants
-                                assigned_merchant_codes = set()
-                                for territory in st.session_state.territories:
-                                    if territory.get('executive') == selected_executive:
-                                        assigned_merchant_codes.update(territory['merchants'])
-                                
-                                unassigned_merchants = unassigned_merchants[
-                                    ~unassigned_merchants['merchant_code'].isin(assigned_merchant_codes)
-                                ]
-                                
-                                if len(unassigned_merchants) > 0:
-                                    # Create auto-recommended circles
-                                    auto_circles = st.session_state.territory_manager.create_auto_recommended_circles(
-                                        unassigned_merchants, radius_km * 1000, max_merchants_per_circle, 
-                                        base_name.strip(), circle_color, selected_executive
-                                    )
-                                    
-                                    # Add to territories
-                                    st.session_state.territories.extend(auto_circles)
-                                    
-                                    st.success(f"Created {len(auto_circles)} auto-recommended circles covering {sum(c['merchant_count'] for c in auto_circles)} merchants")
-                                    st.rerun()
-                                else:
-                                    st.warning("No unassigned merchants found for auto-recommendation")
-                            else:
-                                st.error("Please enter a base name for the circles")
-                    
-                    with col3:
-                        if st.button("🗑️ Clear All", help="Clear all circles for this executive"):
-                            # Remove all circles for this executive
-                            st.session_state.territories = [
-                                t for t in st.session_state.territories 
-                                if t.get('executive') != selected_executive
+                col1, col2 = st.columns(2)
+                with col1:
+                    visit_day = st.text_input("Visit Day/Name:", placeholder="e.g., Monday, Day1, Circle_1")
+                    radius_km = st.slider("Circle Radius (km):", 0.5, 30.0, 2.0, 0.5)
+                with col2:
+                    circle_color = st.color_picker("Circle Color:", "#FF0000")
+                    max_merchants_per_circle = st.number_input("Max merchants per circle:", min_value=1, max_value=50, value=10)
+                
+                if visit_day:
+                    st.success(f"Ready! Click on map to create visit circle for {visit_day}")
+                    st.info("You can adjust the circle size later using the Edit button")
+                
+                # Auto-recommendation section
+                st.subheader("🤖 Auto Recommend Circles")
+                st.info("Automatically create optimal visit circles with alphabetical naming (A, B, C, etc.)")
+                
+                col1, col2, col3 = st.columns([2, 2, 1])
+                with col1:
+                    base_name = st.text_input("Base name for circles:", placeholder="Day", value="Day")
+                with col2:
+                    if st.button("🎯 Auto Recommend Circles", type="primary"):
+                        if base_name.strip():
+                            # Get filtered data for this executive
+                            exec_data = st.session_state.merchant_data[
+                                st.session_state.merchant_data['mobile_bde_id_2'] == selected_executive
                             ]
-                            st.success("Cleared all circles")
-                            st.rerun()
-                
-                else:
-                    # Auto-recommendation section for ALL executives
-                    st.subheader("🤖 Auto Recommend Circles for All Executives")
-                    st.info("Create optimal visit circles for ALL sales executives at once")
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        radius_km_all = st.slider("Circle Radius (km) for all:", 0.5, 30.0, 2.0, 0.5, key="radius_all")
-                        max_merchants_all = st.number_input("Max merchants per circle for all:", min_value=1, max_value=50, value=10, key="merchants_all")
-                    with col2:
-                        base_name_all = st.text_input("Base name for circles:", placeholder="Day", value="Day", key="base_all")
-                        
-                    col1, col2 = st.columns([1, 1])
-                    with col1:
-                        if st.button("🎯 Auto Recommend for ALL Executives", type="primary"):
-                            if base_name_all.strip():
-                                # Get all unique executives
-                                executives = st.session_state.merchant_data['mobile_bde_id_2'].unique()
-                                total_circles_created = 0
-                                total_merchants_assigned = 0
+                            
+                            # Get all unassigned merchants for this executive
+                            unassigned_merchants = exec_data.copy()
+                            
+                            # Remove already assigned merchants
+                            assigned_merchant_codes = set()
+                            for territory in st.session_state.territories:
+                                if territory.get('executive') == selected_executive:
+                                    assigned_merchant_codes.update(territory['merchants'])
+                            
+                            unassigned_merchants = unassigned_merchants[
+                                ~unassigned_merchants['merchant_code'].isin(assigned_merchant_codes)
+                            ]
+                            
+                            if len(unassigned_merchants) > 0:
+                                # Create auto-recommended circles
+                                auto_circles = st.session_state.territory_manager.create_auto_recommended_circles(
+                                    unassigned_merchants, radius_km * 1000, max_merchants_per_circle, 
+                                    base_name.strip(), circle_color, selected_executive
+                                )
                                 
-                                # Color palette for different executives
-                                colors = ["#FF0000", "#00FF00", "#0000FF", "#FFA500", "#800080", "#FFC0CB", "#A52A2A", "#008000"]
+                                # Add to territories
+                                st.session_state.territories.extend(auto_circles)
                                 
-                                for idx, executive in enumerate(executives):
-                                    # Get data for this executive
-                                    exec_data = st.session_state.merchant_data[
-                                        st.session_state.merchant_data['mobile_bde_id_2'] == executive
-                                    ]
-                                    
-                                    # Get unassigned merchants for this executive
-                                    unassigned_merchants = exec_data.copy()
-                                    
-                                    # Remove already assigned merchants
-                                    assigned_merchant_codes = set()
-                                    for territory in st.session_state.territories:
-                                        if territory.get('executive') == executive:
-                                            assigned_merchant_codes.update(territory['merchants'])
-                                    
-                                    unassigned_merchants = unassigned_merchants[
-                                        ~unassigned_merchants['merchant_code'].isin(assigned_merchant_codes)
-                                    ]
-                                    
-                                    if len(unassigned_merchants) > 0:
-                                        # Use different color for each executive
-                                        exec_color = colors[idx % len(colors)]
-                                        
-                                        # Create auto-recommended circles for this executive
-                                        auto_circles = st.session_state.territory_manager.create_auto_recommended_circles(
-                                            unassigned_merchants, radius_km_all * 1000, max_merchants_all, 
-                                            base_name_all.strip(), exec_color, executive
-                                        )
-                                        
-                                        # Add to territories
-                                        st.session_state.territories.extend(auto_circles)
-                                        total_circles_created += len(auto_circles)
-                                        total_merchants_assigned += sum(c['merchant_count'] for c in auto_circles)
-                                
-                                if total_circles_created > 0:
-                                    st.success(f"✅ Created {total_circles_created} circles across all executives, covering {total_merchants_assigned} merchants")
-                                    st.rerun()
-                                else:
-                                    st.warning("No unassigned merchants found for any executive")
+                                st.success(f"Created {len(auto_circles)} auto-recommended circles covering {sum(c['merchant_count'] for c in auto_circles)} merchants")
+                                st.rerun()
                             else:
-                                st.error("Please enter a base name for the circles")
-                    
-                    with col2:
-                        if st.button("🗑️ Clear All Executive Circles", help="Clear all circles for ALL executives"):
-                            st.session_state.territories = []
-                            st.success("Cleared all circles for all executives")
-                            st.rerun()
+                                st.warning("No unassigned merchants found for auto-recommendation")
+                        else:
+                            st.error("Please enter a base name for the circles")
+                
+                with col3:
+                    if st.button("🗑️ Clear All", help="Clear all circles for this executive"):
+                        # Remove all circles for this executive
+                        st.session_state.territories = [
+                            t for t in st.session_state.territories 
+                            if t.get('executive') != selected_executive
+                        ]
+                        st.success("Cleared all circles")
+                        st.rerun()
                 
                 # Existing circles management
                 if st.session_state.territories:
                     st.subheader("Manage Existing Circles")
-                    if selected_executive == "All Sales Persons":
-                        exec_circles = st.session_state.territories.copy()
-                        st.info("Showing all circles. Switch to individual executive to edit circles.")
-                    else:
-                        exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
+                    exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
                     
                     if exec_circles:
                         for i, circle in enumerate(exec_circles):
-                            if selected_executive == "All Sales Persons":
-                                # Read-only view for "All Sales Persons"
-                                st.write(f"**{circle['name']}** ({circle['executive']}) - {circle['merchant_count']} merchants")
-                            else:
-                                # Full management view for individual executives
-                                # Highlight circle being moved
-                                if st.session_state.move_mode and st.session_state.selected_circle_to_move == i:
-                                    st.markdown(f"<div style='background-color: #fff3cd; border: 2px solid #ffeaa7; border-radius: 5px; padding: 10px; margin: 5px 0;'>", unsafe_allow_html=True)
-                                
-                                col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
-                                with col1:
-                                    st.write(f"**{circle['name']}** - {circle['merchant_count']} merchants")
-                                with col2:
-                                    if st.button("Edit", key=f"edit_{i}"):
-                                        st.session_state[f"editing_circle_{i}"] = True
-                                with col3:
-                                    if st.button("Move", key=f"move_{i}"):
-                                        # Clear any editing states
-                                        for j in range(len(exec_circles)):
-                                            st.session_state[f"editing_circle_{j}"] = False
-                                        st.session_state.move_mode = True
-                                        st.session_state.selected_circle_to_move = i
-                                        st.rerun()
-                                with col4:
-                                    if st.button("Copy", key=f"copy_{i}"):
-                                        # Create a duplicate circle with "_Copy" suffix
-                                        new_circle = circle.copy()
-                                        new_circle['name'] = f"{circle['name']}_Copy"
-                                        # Offset the copy slightly
-                                        new_circle['center_lat'] += 0.005
-                                        new_circle['center_lon'] += 0.005
-                                        st.session_state.territories.append(new_circle)
-                                        st.success(f"Created copy '{new_circle['name']}'")
-                                        st.rerun()
-                                with col5:
-                                    if st.button("Delete", key=f"delete_{i}"):
-                                        # Remove circle from territories
-                                        original_index = st.session_state.territories.index(circle)
-                                        st.session_state.territories.pop(original_index)
-                                        st.success(f"Deleted circle '{circle['name']}'")
-                                        st.rerun()
-                                
-                                if st.session_state.move_mode and st.session_state.selected_circle_to_move == i:
-                                    st.markdown("</div>", unsafe_allow_html=True)
+                            # Highlight circle being moved
+                            if st.session_state.move_mode and st.session_state.selected_circle_to_move == i:
+                                st.markdown(f"<div style='background-color: #fff3cd; border: 2px solid #ffeaa7; border-radius: 5px; padding: 10px; margin: 5px 0;'>", unsafe_allow_html=True)
                             
-                            # Edit mode for this circle (only for individual executives)
-                            if selected_executive != "All Sales Persons" and st.session_state.get(f"editing_circle_{i}", False):
+                            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+                            with col1:
+                                st.write(f"**{circle['name']}** - {circle['merchant_count']} merchants")
+                            with col2:
+                                if st.button("Edit", key=f"edit_{i}"):
+                                    st.session_state[f"editing_circle_{i}"] = True
+                            with col3:
+                                if st.button("Move", key=f"move_{i}"):
+                                    # Clear any editing states
+                                    for j in range(len(exec_circles)):
+                                        st.session_state[f"editing_circle_{j}"] = False
+                                    st.session_state.move_mode = True
+                                    st.session_state.selected_circle_to_move = i
+                                    st.rerun()
+                            with col4:
+                                if st.button("Copy", key=f"copy_{i}"):
+                                    # Create a duplicate circle with "_Copy" suffix
+                                    new_circle = circle.copy()
+                                    new_circle['name'] = f"{circle['name']}_Copy"
+                                    # Offset the copy slightly
+                                    new_circle['center_lat'] += 0.005
+                                    new_circle['center_lon'] += 0.005
+                                    st.session_state.territories.append(new_circle)
+                                    st.success(f"Created copy '{new_circle['name']}'")
+                                    st.rerun()
+                            with col5:
+                                if st.button("Delete", key=f"delete_{i}"):
+                                    # Remove circle from territories
+                                    original_index = st.session_state.territories.index(circle)
+                                    st.session_state.territories.pop(original_index)
+                                    st.success(f"Deleted circle '{circle['name']}'")
+                                    st.rerun()
+                            
+                            if st.session_state.move_mode and st.session_state.selected_circle_to_move == i:
+                                st.markdown("</div>", unsafe_allow_html=True)
+                            
+                            # Edit mode for this circle
+                            if st.session_state.get(f"editing_circle_{i}", False):
                                 with st.expander(f"Edit {circle['name']}", expanded=True):
                                     new_name = st.text_input("New name:", value=circle['name'], key=f"name_{i}")
                                     new_color = st.color_picker("New color:", value=circle['color'], key=f"color_{i}")
@@ -329,18 +240,13 @@ with st.sidebar:
 
 # Main content
 if st.session_state.merchant_data is not None and 'selected_executive' in locals():
-    # Filter data based on selection
-    if selected_executive == "All Sales Persons":
-        filtered_data = st.session_state.merchant_data.copy()
-        display_title = "All Sales Persons"
-    else:
-        filtered_data = st.session_state.merchant_data[
-            st.session_state.merchant_data['mobile_bde_id_2'] == selected_executive
-        ]
-        display_title = selected_executive
+    # Filter data for selected executive
+    filtered_data = st.session_state.merchant_data[
+        st.session_state.merchant_data['mobile_bde_id_2'] == selected_executive
+    ]
     
     if len(filtered_data) > 0:
-        st.subheader(f"Map for {display_title}")
+        st.subheader(f"Map for {selected_executive}")
         
         # Map instructions
         st.info("""
@@ -375,10 +281,7 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
             # Check if merchant is assigned to any visit circle
             assigned_circle = None
             for circle in st.session_state.territories:
-                # For "All Sales Persons", check all circles; otherwise filter by executive
-                circle_matches = (selected_executive == "All Sales Persons" or 
-                                circle['executive'] == selected_executive)
-                if circle_matches and row['merchant_code'] in circle['merchants']:
+                if circle['executive'] == selected_executive and row['merchant_code'] in circle['merchants']:
                     assigned_circle = circle
                     break
             
@@ -402,10 +305,7 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
         
         # Add existing visit circles with draggable markers
         for i, circle in enumerate(st.session_state.territories):
-            # Show circles for selected executive or all executives if "All Sales Persons" is selected
-            show_circle = (selected_executive == "All Sales Persons" or 
-                          circle['executive'] == selected_executive)
-            if show_circle:
+            if circle['executive'] == selected_executive:
                 # Add the circle
                 folium.Circle(
                     location=[circle['center_lat'], circle['center_lon']],
@@ -440,19 +340,10 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
             map_data = st_folium(m, width=700, height=500, returned_objects=["last_clicked", "all_drawings", "markers"])
             
             # Show manual reassignment interface for existing circles
-            if selected_executive == "All Sales Persons":
-                exec_circles = st.session_state.territories.copy()
-                reassignment_note = "Note: Only reassignment is available in 'All Sales Persons' view. Switch to individual executive to create/edit circles."
-            else:
-                exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
-                reassignment_note = ""
-            
+            exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
             if exec_circles:
                 st.subheader("🔄 Manual Reassignment")
-                if reassignment_note:
-                    st.warning(reassignment_note)
-                else:
-                    st.info("If you've dragged circles around, click 'Reassign All' to update merchant assignments")
+                st.info("If you've dragged circles around, click 'Reassign All' to update merchant assignments")
                 
                 if st.button("🔄 Reassign All Circles", type="primary"):
                     # Get current marker positions and update all circles
@@ -483,10 +374,7 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                 for i, circle in enumerate(exec_circles):
                     col1, col2 = st.columns([3, 1])
                     with col1:
-                        if selected_executive == "All Sales Persons":
-                            st.write(f"**{circle['name']}** ({circle['executive']}) - {circle['merchant_count']} merchants")
-                        else:
-                            st.write(f"**{circle['name']}** - {circle['merchant_count']} merchants")
+                        st.write(f"**{circle['name']}** - {circle['merchant_count']} merchants")
                     with col2:
                         if st.button(f"Reassign", key=f"reassign_individual_{i}"):
                             if map_data.get('markers') and len(map_data['markers']) > i:
@@ -509,10 +397,12 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                             else:
                                 st.warning("No marker data available for this circle. Please refresh the page and try again.")
             
-            # Handle map clicks for new circle creation (only for individual executives)
-            if map_data['last_clicked'] and selected_executive != "All Sales Persons":
+            # Handle map clicks for new circle creation
+            if map_data['last_clicked']:
                 clicked_lat = map_data['last_clicked']['lat']
                 clicked_lon = map_data['last_clicked']['lng']
+                
+
                 
                 # Check if in move mode
                 if st.session_state.move_mode and st.session_state.selected_circle_to_move is not None:
@@ -578,10 +468,7 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
         with col1:
             st.metric("Total Merchants", len(filtered_data))
         with col2:
-            if selected_executive == "All Sales Persons":
-                assigned_count = sum(len(t['merchants']) for t in st.session_state.territories)
-            else:
-                assigned_count = sum(len(t['merchants']) for t in st.session_state.territories if t['executive'] == selected_executive)
+            assigned_count = sum(len(t['merchants']) for t in st.session_state.territories if t['executive'] == selected_executive)
             st.metric("Assigned", assigned_count)
         
         # Export functionality
@@ -603,23 +490,9 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                 
             # Show summary of visit circles
             st.subheader("📊 Visit Schedule Summary")
-            if selected_executive == "All Sales Persons":
-                # Group circles by executive
-                exec_dict = {}
-                for circle in st.session_state.territories:
-                    exec_name = circle['executive']
-                    if exec_name not in exec_dict:
-                        exec_dict[exec_name] = []
-                    exec_dict[exec_name].append(circle)
-                
-                for exec_name, circles in exec_dict.items():
-                    st.write(f"**{exec_name}:**")
-                    for circle in circles:
-                        st.write(f"  • {circle['name']}: {circle['merchant_count']} merchants")
-            else:
-                exec_circles = [t for t in st.session_state.territories if t['executive'] == selected_executive]
-                for circle in exec_circles:
-                    st.write(f"**{circle['name']}**: {circle['merchant_count']} merchants")
+            exec_circles = [t for t in st.session_state.territories if t['executive'] == selected_executive]
+            for circle in exec_circles:
+                st.write(f"**{circle['name']}**: {circle['merchant_count']} merchants")
     else:
         st.warning(f"No merchants found for {selected_executive}")
 else:
