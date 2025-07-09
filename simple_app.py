@@ -193,6 +193,14 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
     if len(filtered_data) > 0:
         st.subheader(f"Map for {selected_executive}")
         
+        # Map instructions
+        st.info("""
+        **Map Controls:**
+        • Red markers with move icon = Drag these to move circles around
+        • Click empty areas to create new circles
+        • Dragging automatically updates merchant assignments
+        """)
+        
         # Show mode indicators
         if st.session_state.move_mode and st.session_state.selected_circle_to_move is not None:
             exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
@@ -240,9 +248,10 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                 fillOpacity=0.8
             ).add_to(m)
         
-        # Add existing visit circles
-        for circle in st.session_state.territories:
+        # Add existing visit circles with draggable markers
+        for i, circle in enumerate(st.session_state.territories):
             if circle['executive'] == selected_executive:
+                # Add the circle
                 folium.Circle(
                     location=[circle['center_lat'], circle['center_lon']],
                     radius=circle['radius'],
@@ -252,11 +261,20 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                     popup=f"<b>Visit Day:</b> {circle['name']}<br><b>Merchants:</b> {circle['merchant_count']}<br><b>Radius:</b> {circle['radius']/1000:.1f} km"
                 ).add_to(m)
                 
-                # Add circle center marker
+                # Add draggable center marker
+                folium.Marker(
+                    location=[circle['center_lat'], circle['center_lon']],
+                    draggable=True,
+                    tooltip=f"Drag to move {circle['name']}",
+                    popup=f"<b>Drag me to move:</b> {circle['name']}",
+                    icon=folium.Icon(color='red', icon='move', prefix='fa')
+                ).add_to(m)
+                
+                # Add circle name label
                 folium.Marker(
                     location=[circle['center_lat'], circle['center_lon']],
                     icon=folium.DivIcon(
-                        html=f'<div style="background-color: {circle["color"]}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">{circle["name"]}</div>',
+                        html=f'<div style="background-color: {circle["color"]}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-top: 25px;">{circle["name"]}</div>',
                         icon_size=(80, 20),
                         icon_anchor=(40, 10)
                     )
@@ -264,10 +282,42 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
         
         # Display map
         try:
-            map_data = st_folium(m, width=700, height=500, returned_objects=["last_clicked"])
+            map_data = st_folium(m, width=700, height=500, returned_objects=["last_clicked", "all_drawings", "markers"])
             
-            # Handle map clicks
-            if map_data['last_clicked']:
+            # Handle drag events from markers
+            drag_update_made = False
+            if map_data.get('markers') and len(map_data['markers']) > 0:
+                exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
+                
+                # Check for marker position changes (drag events)
+                for marker_idx, marker in enumerate(map_data['markers']):
+                    if marker_idx < len(exec_circles):
+                        original_circle = exec_circles[marker_idx]
+                        new_lat = marker['lat']
+                        new_lon = marker['lng']
+                        
+                        # Check if position changed significantly (avoid tiny movements)
+                        lat_diff = abs(new_lat - original_circle['center_lat'])
+                        lon_diff = abs(new_lon - original_circle['center_lon'])
+                        
+                        if lat_diff > 0.001 or lon_diff > 0.001:  # Threshold for meaningful movement
+                            # Update circle position
+                            original_index = st.session_state.territories.index(original_circle)
+                            st.session_state.territories[original_index]['center_lat'] = new_lat
+                            st.session_state.territories[original_index]['center_lon'] = new_lon
+                            
+                            # Recalculate merchants in moved circle
+                            new_merchants = st.session_state.territory_manager.get_merchants_in_circle(
+                                filtered_data, new_lat, new_lon, original_circle['radius']
+                            )
+                            st.session_state.territories[original_index]['merchants'] = new_merchants
+                            st.session_state.territories[original_index]['merchant_count'] = len(new_merchants)
+                            
+                            drag_update_made = True
+                            st.success(f"✅ Moved '{original_circle['name']}' - now has {len(new_merchants)} merchants")
+            
+            # Handle map clicks for new circle creation
+            if map_data['last_clicked'] and not drag_update_made:
                 clicked_lat = map_data['last_clicked']['lat']
                 clicked_lon = map_data['last_clicked']['lng']
                 
@@ -324,6 +374,10 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                             st.info(f"• {circle['name']}: {circle['merchant_count']} merchants")
                     
                     st.rerun()
+            
+            # Auto-refresh if drag update was made
+            if drag_update_made:
+                st.rerun()
                 
         except Exception as e:
             st.error(f"Map loading error: {str(e)}")
