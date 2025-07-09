@@ -52,6 +52,92 @@ class TerritoryManager:
         
         return merchants_in_circle
     
+    def create_visit_circles_with_splitting(self, merchant_data, center_lat, center_lon, radius_meters, max_merchants_per_circle, visit_day, color):
+        """
+        Create visit circles and split them if they contain too many merchants
+        
+        Args:
+            merchant_data: DataFrame with merchant information
+            center_lat: Center latitude of the initial circle
+            center_lon: Center longitude of the initial circle
+            radius_meters: Initial radius in meters
+            max_merchants_per_circle: Maximum merchants allowed per circle
+            visit_day: Base name for the visit day
+            color: Circle color
+            
+        Returns:
+            List of circle dictionaries
+        """
+        circles = []
+        
+        # Get all merchants in the initial circle
+        merchants_in_area = []
+        for idx, row in merchant_data.iterrows():
+            distance = self.haversine_distance(
+                center_lat, center_lon,
+                row['latitude'], row['longitude']
+            )
+            
+            if distance <= radius_meters:
+                merchants_in_area.append({
+                    'merchant_code': row['merchant_code'],
+                    'latitude': row['latitude'],
+                    'longitude': row['longitude'],
+                    'distance': distance
+                })
+        
+        # If merchants count is within limit, create single circle
+        if len(merchants_in_area) <= max_merchants_per_circle:
+            merchant_codes = [m['merchant_code'] for m in merchants_in_area]
+            circles.append({
+                'name': visit_day,
+                'center_lat': center_lat,
+                'center_lon': center_lon,
+                'radius': radius_meters,
+                'color': color,
+                'merchants': merchant_codes,
+                'merchant_count': len(merchant_codes)
+            })
+        else:
+            # Split into multiple circles
+            # Sort merchants by distance from center
+            merchants_in_area.sort(key=lambda x: x['distance'])
+            
+            circle_num = 1
+            start_idx = 0
+            
+            while start_idx < len(merchants_in_area):
+                end_idx = min(start_idx + max_merchants_per_circle, len(merchants_in_area))
+                circle_merchants = merchants_in_area[start_idx:end_idx]
+                
+                # Calculate center for this sub-circle (average of merchant positions)
+                if circle_merchants:
+                    avg_lat = sum(m['latitude'] for m in circle_merchants) / len(circle_merchants)
+                    avg_lon = sum(m['longitude'] for m in circle_merchants) / len(circle_merchants)
+                    
+                    # Calculate radius needed to include all merchants in this sub-circle
+                    max_distance = max(self.haversine_distance(avg_lat, avg_lon, m['latitude'], m['longitude']) 
+                                     for m in circle_merchants)
+                    sub_radius = max_distance * 1.2  # Add 20% buffer
+                    
+                    merchant_codes = [m['merchant_code'] for m in circle_merchants]
+                    circle_name = f"{visit_day}_Circle_{circle_num}" if circle_num > 1 else visit_day
+                    
+                    circles.append({
+                        'name': circle_name,
+                        'center_lat': avg_lat,
+                        'center_lon': avg_lon,
+                        'radius': sub_radius,
+                        'color': color,
+                        'merchants': merchant_codes,
+                        'merchant_count': len(merchant_codes)
+                    })
+                    
+                    circle_num += 1
+                    start_idx = end_idx
+        
+        return circles
+    
     def calculate_territory_overlap(self, territories):
         """
         Calculate which merchants are assigned to multiple territories
@@ -85,11 +171,11 @@ class TerritoryManager:
     
     def export_territories(self, original_data, territories):
         """
-        Create export DataFrame with territory assignments
+        Create export DataFrame with visit circle assignments
         
         Args:
             original_data: Original merchant DataFrame
-            territories: List of territory dictionaries
+            territories: List of visit circle dictionaries
             
         Returns:
             DataFrame ready for CSV export
@@ -97,22 +183,24 @@ class TerritoryManager:
         # Create a copy of original data
         export_df = original_data.copy()
         
-        # Add territory assignment columns
-        export_df['territory_name'] = 'Unassigned'
-        export_df['territory_center_lat'] = None
-        export_df['territory_center_lon'] = None
-        export_df['territory_radius_meters'] = None
-        export_df['territory_color'] = None
+        # Add visit circle assignment columns
+        export_df['visit_day'] = 'Unassigned'
+        export_df['circle_name'] = 'Unassigned'
+        export_df['circle_center_lat'] = None
+        export_df['circle_center_lon'] = None
+        export_df['circle_radius_meters'] = None
+        export_df['circle_color'] = None
         
-        # Assign territories (last assignment wins in case of overlap)
-        for territory in territories:
-            for merchant_code in territory['merchants']:
+        # Assign visit circles (last assignment wins in case of overlap)
+        for circle in territories:
+            for merchant_code in circle['merchants']:
                 mask = export_df['merchant_code'] == merchant_code
-                export_df.loc[mask, 'territory_name'] = territory['name']
-                export_df.loc[mask, 'territory_center_lat'] = territory['center_lat']
-                export_df.loc[mask, 'territory_center_lon'] = territory['center_lon']
-                export_df.loc[mask, 'territory_radius_meters'] = territory['radius']
-                export_df.loc[mask, 'territory_color'] = territory['color']
+                export_df.loc[mask, 'visit_day'] = circle['name']
+                export_df.loc[mask, 'circle_name'] = circle['name']
+                export_df.loc[mask, 'circle_center_lat'] = circle['center_lat']
+                export_df.loc[mask, 'circle_center_lon'] = circle['center_lon']
+                export_df.loc[mask, 'circle_radius_meters'] = circle['radius']
+                export_df.loc[mask, 'circle_color'] = circle['color']
         
         return export_df
     

@@ -13,6 +13,9 @@ def validate_csv_format(df):
     """
     required_columns = ['merchant_code', 'latitude', 'longitude', 'mobile_bde_id_2']
     
+    # Optional columns for existing circles
+    optional_columns = ['visit_day', 'circle_name', 'circle_center_lat', 'circle_center_lon', 'circle_radius_meters', 'circle_color']
+    
     # Check if all required columns exist
     missing_columns = [col for col in required_columns if col not in df.columns]
     

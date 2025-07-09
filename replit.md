@@ -1,8 +1,8 @@
-# Sales Territory Management System
+# Sales Visit Planning System
 
 ## Overview
 
-This is a Sales Territory Management System built with Streamlit that allows users to upload merchant data and manage sales territories through an interactive map interface. The system enables territory creation, merchant assignment, and geographic analysis of sales coverage areas.
+This is a Sales Visit Planning System built with Streamlit that allows users to upload merchant data and create daily visit schedules through an interactive map interface. The system enables visit circle creation, merchant assignment based on geographic proximity, and automatic splitting of circles when they contain too many merchants for a single day.
 
 ## User Preferences
 
@@ -24,17 +24,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Key Components
 
-### 1. Main Application (app.py)
-- **Purpose**: Primary Streamlit interface and application orchestration
+### 1. Main Application (simple_app.py)
+- **Purpose**: Primary Streamlit interface for visit planning
 - **Responsibilities**: UI layout, file upload handling, session state management, map rendering
-- **Key Features**: File upload validation, data preview, interactive map display
+- **Key Features**: File upload validation, data preview, interactive map display, visit circle creation
 
 ### 2. Territory Manager (territory_manager.py)
-- **Purpose**: Core business logic for territory management
+- **Purpose**: Core business logic for visit planning and circle management
 - **Key Methods**:
   - `haversine_distance()`: Geographic distance calculations between coordinates
-  - `get_merchants_in_circle()`: Territory membership determination based on circular boundaries
-- **Design Pattern**: Utility class with mathematical and geographic operations
+  - `get_merchants_in_circle()`: Basic circle membership determination
+  - `create_visit_circles_with_splitting()`: Advanced circle creation with automatic splitting
+- **Design Pattern**: Utility class with mathematical, geographic, and planning operations
 
 ### 3. Utilities (utils.py)
 - **Purpose**: Data validation and helper functions
