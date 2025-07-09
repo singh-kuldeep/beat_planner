@@ -87,7 +87,7 @@ with st.sidebar:
                 col1, col2 = st.columns(2)
                 with col1:
                     visit_day = st.text_input("Visit Day/Name:", placeholder="e.g., Monday, Day1, Circle_1")
-                    radius_km = st.slider("Circle Radius (km):", 0.5, 10.0, 2.0, 0.5)
+                    radius_km = st.slider("Circle Radius (km):", 0.5, 30.0, 2.0, 0.5)
                 with col2:
                     circle_color = st.color_picker("Circle Color:", "#FF0000")
                     max_merchants_per_circle = st.number_input("Max merchants per circle:", min_value=1, max_value=50, value=10)
@@ -98,7 +98,7 @@ with st.sidebar:
                 
                 # Auto-recommendation section
                 st.subheader("🤖 Auto Recommend Circles")
-                st.info("Automatically create optimal visit circles based on your settings")
+                st.info("Automatically create optimal visit circles with alphabetical naming (A, B, C, etc.)")
                 
                 col1, col2, col3 = st.columns([2, 2, 1])
                 with col1:
@@ -203,7 +203,7 @@ with st.sidebar:
                                 with st.expander(f"Edit {circle['name']}", expanded=True):
                                     new_name = st.text_input("New name:", value=circle['name'], key=f"name_{i}")
                                     new_color = st.color_picker("New color:", value=circle['color'], key=f"color_{i}")
-                                    new_radius = st.slider("New radius (km):", 0.5, 10.0, circle['radius']/1000, 0.5, key=f"radius_{i}")
+                                    new_radius = st.slider("New radius (km):", 0.5, 30.0, circle['radius']/1000, 0.5, key=f"radius_{i}")
                                     
                                     col_save, col_cancel = st.columns(2)
                                     with col_save:
