@@ -87,14 +87,13 @@ with st.sidebar:
                 col1, col2 = st.columns(2)
                 with col1:
                     visit_day = st.text_input("Visit Day/Name:", placeholder="e.g., Monday, Day1, Circle_1")
-                    max_merchants_per_day = st.number_input("Max merchants per day:", min_value=1, max_value=50, value=10)
                 with col2:
                     circle_color = st.color_picker("Circle Color:", "#FF0000")
-                    radius_km = st.slider("Initial Radius (km):", 0.5, 10.0, 2.0, 0.5)
+                    radius_km = st.slider("Circle Radius (km):", 0.5, 10.0, 2.0, 0.5)
                 
                 if visit_day:
                     st.success(f"Ready! Click on map to create visit circle for {visit_day}")
-                    st.info(f"Circle will be split if more than {max_merchants_per_day} merchants are found")
+                    st.info("You can adjust the circle size later using the Edit button")
                 
                 # Existing circles management
                 if st.session_state.territories:
@@ -367,9 +366,7 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                 clicked_lat = map_data['last_clicked']['lat']
                 clicked_lon = map_data['last_clicked']['lng']
                 
-                # Debug output
-                st.write(f"Click detected at: {clicked_lat:.4f}, {clicked_lon:.4f}")
-                st.write(f"Visit day: '{visit_day}', Move mode: {st.session_state.move_mode}")
+
                 
                 # Check if in move mode
                 if st.session_state.move_mode and st.session_state.selected_circle_to_move is not None:
@@ -401,27 +398,28 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
                 elif visit_day and visit_day.strip():
                     radius_meters = radius_km * 1000
                     
-                    # Create visit circles with automatic splitting
-                    new_circles = st.session_state.territory_manager.create_visit_circles_with_splitting(
-                        filtered_data, clicked_lat, clicked_lon, radius_meters, 
-                        max_merchants_per_day, visit_day.strip(), circle_color
+                    # Get merchants in the circle
+                    merchants_in_circle = st.session_state.territory_manager.get_merchants_in_circle(
+                        filtered_data, clicked_lat, clicked_lon, radius_meters
                     )
                     
-                    # Add executive info to each circle
-                    for circle in new_circles:
-                        circle['executive'] = selected_executive
+                    # Create a single circle (no automatic splitting)
+                    new_circle = {
+                        'name': visit_day.strip(),
+                        'center_lat': clicked_lat,
+                        'center_lon': clicked_lon,
+                        'radius': radius_meters,
+                        'color': circle_color,
+                        'merchants': merchants_in_circle,
+                        'merchant_count': len(merchants_in_circle),
+                        'executive': selected_executive
+                    }
                     
                     # Add to territories list
-                    st.session_state.territories.extend(new_circles)
+                    st.session_state.territories.append(new_circle)
                     
                     # Show results
-                    if len(new_circles) == 1:
-                        st.success(f"✅ Created visit circle '{new_circles[0]['name']}' with {new_circles[0]['merchant_count']} merchants")
-                    else:
-                        total_merchants = sum(c['merchant_count'] for c in new_circles)
-                        st.success(f"✅ Created {len(new_circles)} visit circles for {total_merchants} merchants:")
-                        for circle in new_circles:
-                            st.info(f"• {circle['name']}: {circle['merchant_count']} merchants")
+                    st.success(f"✅ Created visit circle '{new_circle['name']}' with {new_circle['merchant_count']} merchants")
                     
                     st.rerun()
                 

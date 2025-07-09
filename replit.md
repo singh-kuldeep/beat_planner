@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a Sales Visit Planning System built with Streamlit that allows users to upload merchant data and create daily visit schedules through an interactive map interface. The system enables visit circle creation, merchant assignment based on geographic proximity, and automatic splitting of circles when they contain too many merchants for a single day.
+This is a Sales Visit Planning System built with Streamlit that allows users to upload merchant data and create daily visit schedules through an interactive map interface. The system enables manual visit circle creation, merchant assignment based on geographic proximity, and full circle management with drag-and-drop functionality for easy territory adjustment.
 
 ## User Preferences
 
