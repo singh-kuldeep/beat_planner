@@ -20,6 +20,10 @@ if 'merchant_data' not in st.session_state:
     st.session_state.merchant_data = None
 if 'territory_manager' not in st.session_state:
     st.session_state.territory_manager = TerritoryManager()
+if 'move_mode' not in st.session_state:
+    st.session_state.move_mode = False
+if 'selected_circle_to_move' not in st.session_state:
+    st.session_state.selected_circle_to_move = None
 
 st.title("🗺️ Sales Visit Planning System")
 
@@ -92,6 +96,87 @@ with st.sidebar:
                     st.success(f"Ready! Click on map to create visit circle for {visit_day}")
                     st.info(f"Circle will be split if more than {max_merchants_per_day} merchants are found")
                 
+                # Existing circles management
+                if st.session_state.territories:
+                    st.subheader("Manage Existing Circles")
+                    exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
+                    
+                    if exec_circles:
+                        for i, circle in enumerate(exec_circles):
+                            # Highlight circle being moved
+                            if st.session_state.move_mode and st.session_state.selected_circle_to_move == i:
+                                st.markdown(f"<div style='background-color: #fff3cd; border: 2px solid #ffeaa7; border-radius: 5px; padding: 10px; margin: 5px 0;'>", unsafe_allow_html=True)
+                            
+                            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+                            with col1:
+                                st.write(f"**{circle['name']}** - {circle['merchant_count']} merchants")
+                            with col2:
+                                if st.button("Edit", key=f"edit_{i}"):
+                                    st.session_state[f"editing_circle_{i}"] = True
+                            with col3:
+                                if st.button("Move", key=f"move_{i}"):
+                                    # Clear any editing states
+                                    for j in range(len(exec_circles)):
+                                        st.session_state[f"editing_circle_{j}"] = False
+                                    st.session_state.move_mode = True
+                                    st.session_state.selected_circle_to_move = i
+                                    st.rerun()
+                            with col4:
+                                if st.button("Copy", key=f"copy_{i}"):
+                                    # Create a duplicate circle with "_Copy" suffix
+                                    new_circle = circle.copy()
+                                    new_circle['name'] = f"{circle['name']}_Copy"
+                                    # Offset the copy slightly
+                                    new_circle['center_lat'] += 0.005
+                                    new_circle['center_lon'] += 0.005
+                                    st.session_state.territories.append(new_circle)
+                                    st.success(f"Created copy '{new_circle['name']}'")
+                                    st.rerun()
+                            with col5:
+                                if st.button("Delete", key=f"delete_{i}"):
+                                    # Remove circle from territories
+                                    original_index = st.session_state.territories.index(circle)
+                                    st.session_state.territories.pop(original_index)
+                                    st.success(f"Deleted circle '{circle['name']}'")
+                                    st.rerun()
+                            
+                            if st.session_state.move_mode and st.session_state.selected_circle_to_move == i:
+                                st.markdown("</div>", unsafe_allow_html=True)
+                            
+                            # Edit mode for this circle
+                            if st.session_state.get(f"editing_circle_{i}", False):
+                                with st.expander(f"Edit {circle['name']}", expanded=True):
+                                    new_name = st.text_input("New name:", value=circle['name'], key=f"name_{i}")
+                                    new_color = st.color_picker("New color:", value=circle['color'], key=f"color_{i}")
+                                    new_radius = st.slider("New radius (km):", 0.5, 10.0, circle['radius']/1000, 0.5, key=f"radius_{i}")
+                                    
+                                    col_save, col_cancel = st.columns(2)
+                                    with col_save:
+                                        if st.button("Save Changes", key=f"save_{i}"):
+                                            # Update circle
+                                            original_index = st.session_state.territories.index(circle)
+                                            st.session_state.territories[original_index]['name'] = new_name
+                                            st.session_state.territories[original_index]['color'] = new_color
+                                            st.session_state.territories[original_index]['radius'] = new_radius * 1000
+                                            
+                                            # Recalculate merchants in updated circle
+                                            new_merchants = st.session_state.territory_manager.get_merchants_in_circle(
+                                                filtered_data, circle['center_lat'], circle['center_lon'], new_radius * 1000
+                                            )
+                                            st.session_state.territories[original_index]['merchants'] = new_merchants
+                                            st.session_state.territories[original_index]['merchant_count'] = len(new_merchants)
+                                            
+                                            st.session_state[f"editing_circle_{i}"] = False
+                                            st.success("Changes saved!")
+                                            st.rerun()
+                                    
+                                    with col_cancel:
+                                        if st.button("Cancel", key=f"cancel_{i}"):
+                                            st.session_state[f"editing_circle_{i}"] = False
+                                            st.rerun()
+                    else:
+                        st.info("No circles created yet for this sales executive")
+                
             else:
                 st.error(f"❌ {validation_result['error']}")
                 
@@ -107,6 +192,17 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
     
     if len(filtered_data) > 0:
         st.subheader(f"Map for {selected_executive}")
+        
+        # Show mode indicators
+        if st.session_state.move_mode and st.session_state.selected_circle_to_move is not None:
+            exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
+            if st.session_state.selected_circle_to_move < len(exec_circles):
+                circle_name = exec_circles[st.session_state.selected_circle_to_move]['name']
+                st.warning(f"🔄 MOVE MODE: Click on map to move '{circle_name}' to new location")
+                if st.button("Cancel Move"):
+                    st.session_state.move_mode = False
+                    st.session_state.selected_circle_to_move = None
+                    st.rerun()
         
         # Calculate map center
         center_lat, center_lon = calculate_map_center(filtered_data)
@@ -170,35 +266,64 @@ if st.session_state.merchant_data is not None and 'selected_executive' in locals
         try:
             map_data = st_folium(m, width=700, height=500, returned_objects=["last_clicked"])
             
-            # Handle visit circle creation
-            if map_data['last_clicked'] and visit_day and visit_day.strip():
+            # Handle map clicks
+            if map_data['last_clicked']:
                 clicked_lat = map_data['last_clicked']['lat']
                 clicked_lon = map_data['last_clicked']['lng']
-                radius_meters = radius_km * 1000
                 
-                # Create visit circles with automatic splitting
-                new_circles = st.session_state.territory_manager.create_visit_circles_with_splitting(
-                    filtered_data, clicked_lat, clicked_lon, radius_meters, 
-                    max_merchants_per_day, visit_day.strip(), circle_color
-                )
+                # Check if in move mode
+                if st.session_state.move_mode and st.session_state.selected_circle_to_move is not None:
+                    exec_circles = [t for t in st.session_state.territories if t.get('executive') == selected_executive]
+                    if st.session_state.selected_circle_to_move < len(exec_circles):
+                        # Move the selected circle
+                        circle_to_move = exec_circles[st.session_state.selected_circle_to_move]
+                        original_index = st.session_state.territories.index(circle_to_move)
+                        
+                        # Update circle position
+                        st.session_state.territories[original_index]['center_lat'] = clicked_lat
+                        st.session_state.territories[original_index]['center_lon'] = clicked_lon
+                        
+                        # Recalculate merchants in moved circle
+                        new_merchants = st.session_state.territory_manager.get_merchants_in_circle(
+                            filtered_data, clicked_lat, clicked_lon, circle_to_move['radius']
+                        )
+                        st.session_state.territories[original_index]['merchants'] = new_merchants
+                        st.session_state.territories[original_index]['merchant_count'] = len(new_merchants)
+                        
+                        # Exit move mode
+                        st.session_state.move_mode = False
+                        st.session_state.selected_circle_to_move = None
+                        
+                        st.success(f"✅ Moved '{circle_to_move['name']}' to new location with {len(new_merchants)} merchants")
+                        st.rerun()
                 
-                # Add executive info to each circle
-                for circle in new_circles:
-                    circle['executive'] = selected_executive
-                
-                # Add to territories list
-                st.session_state.territories.extend(new_circles)
-                
-                # Show results
-                if len(new_circles) == 1:
-                    st.success(f"✅ Created visit circle '{new_circles[0]['name']}' with {new_circles[0]['merchant_count']} merchants")
-                else:
-                    total_merchants = sum(c['merchant_count'] for c in new_circles)
-                    st.success(f"✅ Created {len(new_circles)} visit circles for {total_merchants} merchants:")
+                # Handle visit circle creation (only if not in move mode)
+                elif visit_day and visit_day.strip():
+                    radius_meters = radius_km * 1000
+                    
+                    # Create visit circles with automatic splitting
+                    new_circles = st.session_state.territory_manager.create_visit_circles_with_splitting(
+                        filtered_data, clicked_lat, clicked_lon, radius_meters, 
+                        max_merchants_per_day, visit_day.strip(), circle_color
+                    )
+                    
+                    # Add executive info to each circle
                     for circle in new_circles:
-                        st.info(f"• {circle['name']}: {circle['merchant_count']} merchants")
-                
-                st.rerun()
+                        circle['executive'] = selected_executive
+                    
+                    # Add to territories list
+                    st.session_state.territories.extend(new_circles)
+                    
+                    # Show results
+                    if len(new_circles) == 1:
+                        st.success(f"✅ Created visit circle '{new_circles[0]['name']}' with {new_circles[0]['merchant_count']} merchants")
+                    else:
+                        total_merchants = sum(c['merchant_count'] for c in new_circles)
+                        st.success(f"✅ Created {len(new_circles)} visit circles for {total_merchants} merchants:")
+                        for circle in new_circles:
+                            st.info(f"• {circle['name']}: {circle['merchant_count']} merchants")
+                    
+                    st.rerun()
                 
         except Exception as e:
             st.error(f"Map loading error: {str(e)}")
