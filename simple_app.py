@@ -89,7 +89,7 @@ with st.sidebar:
                     st.info("A visit circle represents the area a sales person will cover in one day")
                 else:
                     st.subheader("Circle Creation")
-                    st.warning("⚠️ Switch to an individual sales executive to create or edit circles")
+                    st.info("ℹ️ Manual circle creation available for individual executives. Auto-recommendation for all executives available below.")
                 
                 if selected_executive != "All Sales Persons":
                     col1, col2 = st.columns(2)
