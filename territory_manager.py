@@ -290,3 +290,120 @@ class TerritoryManager:
             }
         
         return {'valid': True}
+    
+    def create_auto_recommended_circles(self, merchant_data, radius_meters, max_merchants_per_circle, base_name, color, executive):
+        """
+        Create auto-recommended circles using clustering algorithm
+        
+        Args:
+            merchant_data: DataFrame with unassigned merchant information
+            radius_meters: Circle radius in meters
+            max_merchants_per_circle: Maximum merchants allowed per circle
+            base_name: Base name for generated circles
+            color: Circle color
+            executive: Executive name
+            
+        Returns:
+            List of circle dictionaries
+        """
+        if len(merchant_data) == 0:
+            return []
+        
+        circles = []
+        remaining_merchants = merchant_data.copy()
+        circle_count = 1
+        
+        while len(remaining_merchants) > 0:
+            # Find the best starting point (center of remaining merchants)
+            center_lat = remaining_merchants['latitude'].mean()
+            center_lon = remaining_merchants['longitude'].mean()
+            
+            # Alternatively, start with the merchant that has the most neighbors
+            best_center_lat, best_center_lon = self._find_optimal_center(remaining_merchants, radius_meters)
+            
+            # Get merchants in this circle
+            merchants_in_circle = self.get_merchants_in_circle(
+                remaining_merchants, best_center_lat, best_center_lon, radius_meters
+            )
+            
+            # If no merchants found, expand radius or use remaining merchants
+            if len(merchants_in_circle) == 0:
+                # Take the first remaining merchant as center
+                first_merchant = remaining_merchants.iloc[0]
+                best_center_lat = first_merchant['latitude']
+                best_center_lon = first_merchant['longitude']
+                merchants_in_circle = self.get_merchants_in_circle(
+                    remaining_merchants, best_center_lat, best_center_lon, radius_meters
+                )
+            
+            # If still too many merchants, split or take only max_merchants_per_circle
+            if len(merchants_in_circle) > max_merchants_per_circle:
+                # Take closest merchants to center
+                merchant_distances = []
+                for merchant_code in merchants_in_circle:
+                    merchant_row = remaining_merchants[remaining_merchants['merchant_code'] == merchant_code].iloc[0]
+                    distance = self.haversine_distance(
+                        best_center_lat, best_center_lon,
+                        merchant_row['latitude'], merchant_row['longitude']
+                    )
+                    merchant_distances.append((merchant_code, distance))
+                
+                # Sort by distance and take closest ones
+                merchant_distances.sort(key=lambda x: x[1])
+                merchants_in_circle = [m[0] for m in merchant_distances[:max_merchants_per_circle]]
+            
+            # Create circle
+            circle = {
+                'name': f"{base_name}_{circle_count}",
+                'center_lat': best_center_lat,
+                'center_lon': best_center_lon,
+                'radius': radius_meters,
+                'color': color,
+                'merchants': merchants_in_circle,
+                'merchant_count': len(merchants_in_circle),
+                'executive': executive
+            }
+            
+            circles.append(circle)
+            
+            # Remove assigned merchants from remaining
+            remaining_merchants = remaining_merchants[
+                ~remaining_merchants['merchant_code'].isin(merchants_in_circle)
+            ]
+            
+            circle_count += 1
+            
+            # Safety check to prevent infinite loop
+            if circle_count > 100:
+                break
+        
+        return circles
+    
+    def _find_optimal_center(self, merchant_data, radius_meters):
+        """
+        Find optimal center point that maximizes merchant coverage
+        
+        Args:
+            merchant_data: DataFrame with merchant locations
+            radius_meters: Circle radius in meters
+            
+        Returns:
+            Tuple of (optimal_lat, optimal_lon)
+        """
+        best_lat, best_lon = merchant_data['latitude'].mean(), merchant_data['longitude'].mean()
+        max_merchants = 0
+        
+        # Try each merchant as a potential center
+        for idx, row in merchant_data.iterrows():
+            center_lat, center_lon = row['latitude'], row['longitude']
+            
+            # Count merchants within radius
+            merchants_in_circle = self.get_merchants_in_circle(
+                merchant_data, center_lat, center_lon, radius_meters
+            )
+            
+            if len(merchants_in_circle) > max_merchants:
+                max_merchants = len(merchants_in_circle)
+                best_lat, best_lon = center_lat, center_lon
+        
+        return best_lat, best_lon

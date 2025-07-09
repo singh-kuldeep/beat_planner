@@ -87,13 +87,64 @@ with st.sidebar:
                 col1, col2 = st.columns(2)
                 with col1:
                     visit_day = st.text_input("Visit Day/Name:", placeholder="e.g., Monday, Day1, Circle_1")
+                    radius_km = st.slider("Circle Radius (km):", 0.5, 10.0, 2.0, 0.5)
                 with col2:
                     circle_color = st.color_picker("Circle Color:", "#FF0000")
-                    radius_km = st.slider("Circle Radius (km):", 0.5, 10.0, 2.0, 0.5)
+                    max_merchants_per_circle = st.number_input("Max merchants per circle:", min_value=1, max_value=50, value=10)
                 
                 if visit_day:
                     st.success(f"Ready! Click on map to create visit circle for {visit_day}")
                     st.info("You can adjust the circle size later using the Edit button")
+                
+                # Auto-recommendation section
+                st.subheader("🤖 Auto Recommend Circles")
+                st.info("Automatically create optimal visit circles based on your settings")
+                
+                col1, col2, col3 = st.columns([2, 2, 1])
+                with col1:
+                    base_name = st.text_input("Base name for circles:", placeholder="Day", value="Day")
+                with col2:
+                    if st.button("🎯 Auto Recommend Circles", type="primary"):
+                        if base_name.strip():
+                            # Get all unassigned merchants for this executive
+                            unassigned_merchants = filtered_data.copy()
+                            
+                            # Remove already assigned merchants
+                            assigned_merchant_codes = set()
+                            for territory in st.session_state.territories:
+                                if territory.get('executive') == selected_executive:
+                                    assigned_merchant_codes.update(territory['merchants'])
+                            
+                            unassigned_merchants = unassigned_merchants[
+                                ~unassigned_merchants['merchant_code'].isin(assigned_merchant_codes)
+                            ]
+                            
+                            if len(unassigned_merchants) > 0:
+                                # Create auto-recommended circles
+                                auto_circles = st.session_state.territory_manager.create_auto_recommended_circles(
+                                    unassigned_merchants, radius_km * 1000, max_merchants_per_circle, 
+                                    base_name.strip(), circle_color, selected_executive
+                                )
+                                
+                                # Add to territories
+                                st.session_state.territories.extend(auto_circles)
+                                
+                                st.success(f"Created {len(auto_circles)} auto-recommended circles covering {sum(c['merchant_count'] for c in auto_circles)} merchants")
+                                st.rerun()
+                            else:
+                                st.warning("No unassigned merchants found for auto-recommendation")
+                        else:
+                            st.error("Please enter a base name for the circles")
+                
+                with col3:
+                    if st.button("🗑️ Clear All", help="Clear all circles for this executive"):
+                        # Remove all circles for this executive
+                        st.session_state.territories = [
+                            t for t in st.session_state.territories 
+                            if t.get('executive') != selected_executive
+                        ]
+                        st.success("Cleared all circles")
+                        st.rerun()
                 
                 # Existing circles management
                 if st.session_state.territories:
