@@ -52,7 +52,7 @@ with st.sidebar:
                 
                 # Sales executive selection
                 st.subheader("👤 Select Sales Executive")
-                sales_executives = sorted(df['mobile_bde_id_2'].unique())
+                sales_executives = sorted(df['emp_id'].unique())
                 selected_executive = st.selectbox(
                     "Choose Sales Executive:",
                     options=sales_executives,
@@ -147,7 +147,7 @@ with st.sidebar:
 if st.session_state.merchant_data is not None and 'selected_executive' in st.session_state:
     # Filter data for selected executive
     filtered_data = st.session_state.merchant_data[
-        st.session_state.merchant_data['mobile_bde_id_2'] == st.session_state.selected_executive
+        st.session_state.merchant_data['emp_id'] == st.session_state.selected_executive
     ].copy()
     
     if len(filtered_data) > 0:

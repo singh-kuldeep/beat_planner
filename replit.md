@@ -49,7 +49,7 @@ Preferred communication style: Simple, everyday language.
 ## Data Flow
 
 1. **Data Ingestion**: User uploads CSV file containing merchant data
-2. **Validation**: System validates required columns (merchant_code, latitude, longitude, mobile_bde_id_2)
+2. **Validation**: System validates required columns (merchant_code, merchant_latitude, merchant_longitude, emp_id)
 3. **Storage**: Valid data stored in session state for persistent access
 4. **Visualization**: Merchant locations plotted on interactive Folium map
 5. **Territory Creation**: Users define circular territories on map
