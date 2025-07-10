@@ -4,7 +4,6 @@ import folium
 from streamlit_folium import st_folium
 from territory_manager import TerritoryManager
 from utils import validate_csv_format, calculate_map_center
-from ai_optimizer import AITerritoryOptimizer
 import io
 
 def _display_executive_map(selected_executive, filtered_data):
@@ -284,8 +283,7 @@ if 'merchant_data' not in st.session_state:
 if 'territory_manager' not in st.session_state:
     st.session_state.territory_manager = TerritoryManager()
 
-if 'ai_optimizer' not in st.session_state:
-    st.session_state.ai_optimizer = AITerritoryOptimizer()
+
 if 'move_mode' not in st.session_state:
     st.session_state.move_mode = False
 if 'selected_circle_to_move' not in st.session_state:
@@ -530,110 +528,7 @@ with st.sidebar:
                         else:
                             st.info(f"No circles created yet for {exec_name}")
                 
-                # AI-powered optimization section
-                if st.session_state.territories:
-                    st.subheader("🧠 AI Territory Optimization")
-                    
-                    if st.session_state.ai_optimizer.is_available():
-                        st.info("AI-powered analysis to optimize your territory setup for maximum efficiency")
-                        
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            if st.button("📊 Analyze Current Setup", type="secondary"):
-                                with st.spinner("AI analyzing territories..."):
-                                    analysis = st.session_state.ai_optimizer.analyze_territory_efficiency(
-                                        st.session_state.territories, 
-                                        df
-                                    )
-                                    st.session_state.ai_analysis = analysis
-                                st.rerun()
-                        
-                        with col2:
-                            if st.button("💡 Get Optimization Suggestions", type="primary"):
-                                with st.spinner("AI generating optimization suggestions..."):
-                                    suggestions = st.session_state.ai_optimizer.get_optimization_suggestions(
-                                        st.session_state.territories, 
-                                        df
-                                    )
-                                    st.session_state.ai_suggestions = suggestions
-                                st.rerun()
-                        
-                        # Display AI analysis results
-                        if 'ai_analysis' in st.session_state:
-                            analysis = st.session_state.ai_analysis
-                            if "error" not in analysis:
-                                st.subheader("📊 Territory Analysis")
-                                
-                                # Show efficiency scores
-                                score_col1, score_col2, score_col3 = st.columns(3)
-                                with score_col1:
-                                    efficiency = analysis.get('efficiency_score', 0)
-                                    st.metric("Efficiency Score", f"{efficiency}/100")
-                                with score_col2:
-                                    balance = analysis.get('balance_score', 0)
-                                    st.metric("Balance Score", f"{balance}/100")
-                                with score_col3:
-                                    coverage = analysis.get('coverage_score', 0)
-                                    st.metric("Coverage Score", f"{coverage}/100")
-                                
-                                # Show key insights
-                                if 'key_insights' in analysis:
-                                    st.write("**Key Insights:**")
-                                    for insight in analysis['key_insights']:
-                                        st.write(f"• {insight}")
-                                
-                                # Show strengths and weaknesses
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    if 'strengths' in analysis:
-                                        st.success("**Strengths:**")
-                                        for strength in analysis['strengths']:
-                                            st.write(f"✓ {strength}")
-                                
-                                with col2:
-                                    if 'weaknesses' in analysis:
-                                        st.warning("**Areas for Improvement:**")
-                                        for weakness in analysis['weaknesses']:
-                                            st.write(f"⚠️ {weakness}")
-                            else:
-                                st.error(f"Analysis failed: {analysis['error']}")
-                        
-                        # Display AI suggestions
-                        if 'ai_suggestions' in st.session_state:
-                            suggestions = st.session_state.ai_suggestions
-                            if "error" not in suggestions:
-                                st.subheader("💡 AI Optimization Suggestions")
-                                
-                                if 'overall_strategy' in suggestions:
-                                    st.info(f"**Strategy:** {suggestions['overall_strategy']}")
-                                
-                                # Display suggestions by priority
-                                if 'suggestions' in suggestions:
-                                    for suggestion in suggestions['suggestions']:
-                                        priority = suggestion.get('priority', 'medium')
-                                        priority_color = {
-                                            'high': '🔴',
-                                            'medium': '🟡', 
-                                            'low': '🟢'
-                                        }.get(priority, '🟡')
-                                        
-                                        with st.expander(f"{priority_color} {suggestion.get('title', 'Suggestion')} ({priority} priority)"):
-                                            st.write(f"**Description:** {suggestion.get('description', '')}")
-                                            st.write(f"**Action:** {suggestion.get('action', '')}")
-                                            if 'expected_improvement' in suggestion:
-                                                st.write(f"**Expected Benefit:** {suggestion['expected_improvement']}")
-                                
-                                if 'implementation_order' in suggestions:
-                                    st.info(f"**Implementation Order:** {suggestions['implementation_order']}")
-                            else:
-                                st.error(f"Suggestions failed: {suggestions['error']}")
-                    
-                    else:
-                        st.warning("🔑 AI optimization requires an OpenAI API key")
-                        st.info("Provide your OpenAI API key to unlock intelligent territory optimization suggestions")
-                        if st.button("Set API Key"):
-                            st.info("Please set the OPENAI_API_KEY environment variable to enable AI features")
+
                 
             else:
                 st.error(f"❌ {validation_result['error']}")

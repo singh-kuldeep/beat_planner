@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a Sales Visit Planning System built with Streamlit that allows users to upload merchant data and create daily visit schedules through an interactive map interface. The system supports multiple sales executives simultaneously, enables manual and automatic visit circle creation, merchant assignment based on geographic proximity, and full circle management with drag-and-drop functionality for easy territory adjustment. Multi-executive auto-recommendation feature allows generating optimal circles for all selected executives at once with pure integer naming (1, 2, 3, etc.). AI-powered territory optimization provides intelligent analysis and suggestions for improving efficiency, coverage, and workload balance using OpenAI GPT-4o.
+This is a Sales Visit Planning System built with Streamlit that allows users to upload merchant data and create daily visit schedules through an interactive map interface. The system supports multiple sales executives simultaneously, enables manual and automatic visit circle creation, merchant assignment based on geographic proximity, and full circle management with drag-and-drop functionality for easy territory adjustment. Multi-executive auto-recommendation feature allows generating optimal circles for all selected executives at once with pure integer naming (1, 2, 3, etc.).
 
 ## User Preferences
 
@@ -44,13 +44,7 @@ Preferred communication style: Simple, everyday language.
   - Data type validation and null value checking
   - Geographic coordinate range validation
 
-### 4. AI Territory Optimizer (ai_optimizer.py)
-- **Purpose**: AI-powered territory analysis and optimization suggestions
-- **Key Features**:
-  - `analyze_territory_efficiency()`: Comprehensive analysis of current territory setup
-  - `get_optimization_suggestions()`: AI-generated improvement recommendations
-  - Territory performance scoring (efficiency, balance, coverage)
-  - Contextual insights and actionable suggestions using GPT-4o
+
 
 ## Data Flow
 
