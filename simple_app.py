@@ -388,7 +388,7 @@ with st.sidebar:
                     auto_col1, auto_col2 = st.columns(2)
                     
                     with auto_col1:
-                        auto_radius_km = st.slider("Auto Circle Radius (km):", 0.5, 30.0, 10.0, 0.5, key="auto_radius")
+                        auto_radius_km = st.slider("Auto Circle Radius (km):", 0.5, 30.0, 15.0, 0.5, key="auto_radius")
                         auto_max_merchants = st.number_input("Max merchants per auto circle:", min_value=1, max_value=50, value=11, key="auto_max")
                     
                     with auto_col2:
