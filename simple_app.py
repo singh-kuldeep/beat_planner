@@ -347,11 +347,11 @@ with st.sidebar:
                     col1, col2 = st.columns(2)
                     with col1:
                         visit_day = st.text_input("Visit Day/Name:", placeholder="e.g., Monday, Day1, Circle_1")
-                        radius_km = st.slider("Circle Radius (km):", 0.5, 30.0, 2.0, 0.5)
+                        radius_km = st.slider("Circle Radius (km):", 0.5, 30.0, 10.0, 0.5)
                         target_executive = st.selectbox("Assign to Executive:", options=selected_executives)
                     with col2:
                         circle_color = st.color_picker("Circle Color:", "#FF0000")
-                        max_merchants_per_circle = st.number_input("Max merchants per circle:", min_value=1, max_value=50, value=10)
+                        max_merchants_per_circle = st.number_input("Max merchants per circle:", min_value=1, max_value=50, value=11)
                     
                     if visit_day and target_executive:
                         # Store parameters in session state for map click handling
@@ -365,7 +365,7 @@ with st.sidebar:
                 
                 # Auto-recommendation section
                 st.subheader("🤖 Auto Recommend Circles")
-                st.info("Automatically create optimal visit circles with alphabetical naming (A, B, C, etc.)")
+                st.info("Automatically create optimal visit circles with sequential numbering (1, 2, 3, etc.)")
                 
                 if selected_executives:
                     # Option to select one or multiple executives
@@ -386,8 +386,8 @@ with st.sidebar:
                     auto_col1, auto_col2 = st.columns(2)
                     
                     with auto_col1:
-                        auto_radius_km = st.slider("Auto Circle Radius (km):", 0.5, 30.0, 3.0, 0.5, key="auto_radius")
-                        auto_max_merchants = st.number_input("Max merchants per auto circle:", min_value=1, max_value=50, value=15, key="auto_max")
+                        auto_radius_km = st.slider("Auto Circle Radius (km):", 0.5, 30.0, 10.0, 0.5, key="auto_radius")
+                        auto_max_merchants = st.number_input("Max merchants per auto circle:", min_value=1, max_value=50, value=11, key="auto_max")
                     
                     with auto_col2:
                         auto_base_name = st.text_input("Base name for circles:", value="Day", key="auto_base")

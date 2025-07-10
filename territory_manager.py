@@ -316,13 +316,9 @@ class TerritoryManager:
         remaining_merchants = merchant_data.copy()
         circle_count = 0
         
-        # Create alphabetical sequence for naming: A, B, C, ..., Z, AA, AB, etc.
-        def get_alphabetical_name(index):
-            result = ""
-            while index >= 0:
-                result = chr(65 + (index % 26)) + result
-                index = index // 26 - 1
-            return result
+        # Create integer sequence for naming: 1, 2, 3, etc.
+        def get_integer_name(index):
+            return str(index + 1)
         
         while len(remaining_merchants) > 0:
             # Find the best starting point (center of remaining merchants)
@@ -363,10 +359,10 @@ class TerritoryManager:
                 merchant_distances.sort(key=lambda x: x[1])
                 merchants_in_circle = [m[0] for m in merchant_distances[:max_merchants_per_circle]]
             
-            # Create circle with alphabetical naming
-            alpha_suffix = get_alphabetical_name(circle_count)
+            # Create circle with integer naming
+            integer_suffix = get_integer_name(circle_count)
             circle = {
-                'name': f"{base_name}_{alpha_suffix}",
+                'name': f"{base_name}_{integer_suffix}",
                 'center_lat': best_center_lat,
                 'center_lon': best_center_lon,
                 'radius': radius_meters,
