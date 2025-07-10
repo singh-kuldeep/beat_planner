@@ -362,7 +362,7 @@ class TerritoryManager:
             # Create circle with integer naming
             integer_suffix = get_integer_name(circle_count)
             circle = {
-                'name': f"{base_name}_{integer_suffix}",
+                'name': integer_suffix,
                 'center_lat': best_center_lat,
                 'center_lon': best_center_lon,
                 'radius': radius_meters,
