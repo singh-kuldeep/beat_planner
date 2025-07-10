@@ -319,75 +319,146 @@ class TerritoryManager:
     
     def _create_circles_optimized(self, merchant_data, radius_meters, max_merchants_per_circle, color, executive):
         """
-        Optimized circle creation using vectorized operations and smart clustering
+        Optimized circle creation ensuring all merchants are covered
         """
         circles = []
         remaining_data = merchant_data.copy().reset_index(drop=True)
         circle_count = 0
         
-        # Convert to numpy arrays for faster computation
-        coords = remaining_data[['merchant_latitude', 'merchant_longitude']].values
-        merchant_codes = remaining_data['merchant_code'].values
-        
         while len(remaining_data) > 0:
             if len(remaining_data) <= max_merchants_per_circle:
-                # If remaining merchants are few, create one final circle
+                # If remaining merchants are few, create one final circle covering all
                 center_lat = remaining_data['merchant_latitude'].mean()
                 center_lon = remaining_data['merchant_longitude'].mean()
                 merchants_in_circle = remaining_data['merchant_code'].tolist()
+                
+                # Ensure radius covers all remaining merchants
+                if len(remaining_data) > 1:
+                    max_distance = 0
+                    for _, merchant in remaining_data.iterrows():
+                        distance = self.haversine_distance(
+                            center_lat, center_lon,
+                            merchant['merchant_latitude'], merchant['merchant_longitude']
+                        )
+                        max_distance = max(max_distance, distance)
+                    # Add 20% buffer to ensure coverage
+                    actual_radius = max(radius_meters, max_distance * 1.2)
+                else:
+                    actual_radius = radius_meters
             else:
-                # Find optimal center using vectorized distance calculation
+                # Find optimal center using fast algorithm
                 center_lat, center_lon = self._find_optimal_center_fast(remaining_data, radius_meters, max_merchants_per_circle)
                 
-                # Get merchants within radius using vectorized calculation
+                # Get merchants within radius
                 merchants_in_circle = self._get_merchants_in_circle_fast(
                     remaining_data, center_lat, center_lon, radius_meters, max_merchants_per_circle
                 )
+                
+                # If no merchants found (shouldn't happen but safety check)
+                if not merchants_in_circle:
+                    # Take the closest merchant
+                    first_merchant = remaining_data.iloc[0]
+                    center_lat = first_merchant['merchant_latitude']
+                    center_lon = first_merchant['merchant_longitude']
+                    merchants_in_circle = [first_merchant['merchant_code']]
+                
+                actual_radius = radius_meters
             
-            # Create circle
-            circle = {
-                'name': str(circle_count + 1),
-                'center_lat': center_lat,
-                'center_lon': center_lon,
-                'radius': radius_meters,
-                'color': color,
-                'merchants': merchants_in_circle,
-                'merchant_count': len(merchants_in_circle),
-                'executive': executive
-            }
+            # Ensure we have at least one merchant
+            if not merchants_in_circle and len(remaining_data) > 0:
+                merchants_in_circle = [remaining_data.iloc[0]['merchant_code']]
+                center_lat = remaining_data.iloc[0]['merchant_latitude']
+                center_lon = remaining_data.iloc[0]['merchant_longitude']
+                actual_radius = radius_meters
             
-            circles.append(circle)
+            # Create circle only if we have merchants
+            if merchants_in_circle:
+                circle = {
+                    'name': str(circle_count + 1),
+                    'center_lat': center_lat,
+                    'center_lon': center_lon,
+                    'radius': actual_radius,
+                    'color': color,
+                    'merchants': merchants_in_circle,
+                    'merchant_count': len(merchants_in_circle),
+                    'executive': executive
+                }
+                
+                circles.append(circle)
+                
+                # Remove assigned merchants
+                remaining_data = remaining_data[~remaining_data['merchant_code'].isin(merchants_in_circle)].reset_index(drop=True)
+                circle_count += 1
+            else:
+                # Emergency exit if no merchants can be assigned
+                break
             
-            # Remove assigned merchants efficiently
-            remaining_data = remaining_data[~remaining_data['merchant_code'].isin(merchants_in_circle)].reset_index(drop=True)
-            circle_count += 1
-            
-            # Safety check
-            if circle_count > 50:  # Reduced from 100 for safety
+            # Safety check to prevent infinite loop
+            if circle_count > 100:
+                # If we hit the limit, assign all remaining merchants to the last circle
+                if len(remaining_data) > 0:
+                    final_merchants = remaining_data['merchant_code'].tolist()
+                    if circles:  # Add to last circle
+                        circles[-1]['merchants'].extend(final_merchants)
+                        circles[-1]['merchant_count'] = len(circles[-1]['merchants'])
+                    else:  # Create a final circle
+                        center_lat = remaining_data['merchant_latitude'].mean()
+                        center_lon = remaining_data['merchant_longitude'].mean()
+                        final_circle = {
+                            'name': str(circle_count + 1),
+                            'center_lat': center_lat,
+                            'center_lon': center_lon,
+                            'radius': radius_meters * 2,  # Larger radius to ensure coverage
+                            'color': color,
+                            'merchants': final_merchants,
+                            'merchant_count': len(final_merchants),
+                            'executive': executive
+                        }
+                        circles.append(final_circle)
                 break
         
         return circles
     
     def _find_optimal_center_fast(self, merchant_data, radius_meters, max_merchants_per_circle):
         """
-        Fast optimal center finding using vectorized operations
+        Fast optimal center finding ensuring good coverage
         """
-        if len(merchant_data) <= 20:  # For small datasets, use original method
+        if len(merchant_data) == 0:
+            return 0, 0
+        
+        if len(merchant_data) == 1:
+            return merchant_data.iloc[0]['merchant_latitude'], merchant_data.iloc[0]['merchant_longitude']
+        
+        if len(merchant_data) <= 10:  # For small datasets, use simple method
             return self._find_optimal_center_simple(merchant_data, radius_meters)
         
-        # For larger datasets, use sampling + clustering approach
-        # Sample points for initial cluster centers
-        sample_size = min(20, len(merchant_data))
-        sample_indices = np.random.choice(len(merchant_data), sample_size, replace=False)
+        # For larger datasets, use sampling approach
+        sample_size = min(15, len(merchant_data))
+        
+        # Always include geometric center as a candidate
+        geo_center_lat = merchant_data['merchant_latitude'].mean()
+        geo_center_lon = merchant_data['merchant_longitude'].mean()
+        
+        # Sample additional points
+        sample_indices = np.random.choice(len(merchant_data), sample_size - 1, replace=False)
         sample_data = merchant_data.iloc[sample_indices]
         
-        best_center = None
+        best_center = (geo_center_lat, geo_center_lon)
         max_coverage = 0
         
+        # Check geometric center first
+        distances = self._calculate_distances_vectorized(
+            merchant_data['merchant_latitude'].values,
+            merchant_data['merchant_longitude'].values,
+            geo_center_lat, geo_center_lon
+        )
+        merchants_in_radius = np.sum(distances <= radius_meters)
+        max_coverage = merchants_in_radius
+        
+        # Check sampled points
         for _, row in sample_data.iterrows():
             center_lat, center_lon = row['merchant_latitude'], row['merchant_longitude']
             
-            # Count merchants within radius using vectorized distance
             distances = self._calculate_distances_vectorized(
                 merchant_data['merchant_latitude'].values,
                 merchant_data['merchant_longitude'].values,
@@ -400,7 +471,7 @@ class TerritoryManager:
                 max_coverage = merchants_in_radius
                 best_center = (center_lat, center_lon)
         
-        return best_center if best_center else (merchant_data['merchant_latitude'].mean(), merchant_data['merchant_longitude'].mean())
+        return best_center
     
     def _find_optimal_center_simple(self, merchant_data, radius_meters):
         """
@@ -411,8 +482,11 @@ class TerritoryManager:
     
     def _get_merchants_in_circle_fast(self, merchant_data, center_lat, center_lon, radius_meters, max_merchants):
         """
-        Fast merchant selection using vectorized distance calculation
+        Fast merchant selection ensuring at least one merchant is always selected
         """
+        if len(merchant_data) == 0:
+            return []
+        
         # Calculate all distances at once
         distances = self._calculate_distances_vectorized(
             merchant_data['merchant_latitude'].values,
@@ -422,11 +496,13 @@ class TerritoryManager:
         
         # Get indices of merchants within radius
         within_radius = distances <= radius_meters
+        merchants_within_count = np.sum(within_radius)
         
-        if np.sum(within_radius) == 0:
-            # If no merchants within radius, take the closest one
-            closest_idx = np.argmin(distances)
-            return [merchant_data.iloc[closest_idx]['merchant_code']]
+        if merchants_within_count == 0:
+            # If no merchants within radius, take the closest ones up to max_merchants
+            # This ensures we always assign merchants
+            closest_indices = np.argsort(distances)[:min(max_merchants, len(merchant_data))]
+            return merchant_data.iloc[closest_indices]['merchant_code'].tolist()
         
         # Get merchants within radius
         merchants_in_radius = merchant_data[within_radius]
