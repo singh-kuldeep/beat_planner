@@ -112,14 +112,15 @@ def calculate_map_center(df):
 
 def clean_merchant_data(df):
     """
-    Clean and standardize merchant data
+    Clean merchant data by removing null entries and invalid coordinates
     
     Args:
         df: Raw merchant DataFrame
         
     Returns:
-        Cleaned DataFrame
+        tuple: (cleaned_df, cleaning_report)
     """
+    original_count = len(df)
     df_clean = df.copy()
     
     # Remove leading/trailing whitespace from string columns
@@ -134,10 +135,30 @@ def clean_merchant_data(df):
         if col in df_clean.columns:
             df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
     
-    # Remove rows with invalid coordinates
-    df_clean = df_clean.dropna(subset=['merchant_latitude', 'merchant_longitude'])
+    # Remove rows with null values in critical columns
+    required_columns = ['merchant_code', 'merchant_latitude', 'merchant_longitude', 'emp_id']
+    df_clean = df_clean.dropna(subset=required_columns)
     
-    return df_clean
+    # Remove rows with invalid coordinates
+    df_clean = df_clean[
+        (df_clean['merchant_latitude'].between(-90, 90)) &
+        (df_clean['merchant_longitude'].between(-180, 180))
+    ]
+    
+    # Remove duplicate merchant codes
+    df_clean = df_clean.drop_duplicates(subset=['merchant_code'])
+    
+    final_count = len(df_clean)
+    removed_count = original_count - final_count
+    
+    cleaning_report = {
+        'original_count': original_count,
+        'final_count': final_count,
+        'removed_count': removed_count,
+        'removal_percentage': (removed_count / original_count * 100) if original_count > 0 else 0
+    }
+    
+    return df_clean, cleaning_report
 
 def format_distance(distance_meters):
     """

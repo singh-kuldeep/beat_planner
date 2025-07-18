@@ -3,7 +3,7 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 from territory_manager import TerritoryManager
-from utils import validate_csv_format, calculate_map_center
+from utils import validate_csv_format, calculate_map_center, clean_merchant_data
 import io
 
 def _display_executive_map(selected_executive, filtered_data):
@@ -344,11 +344,41 @@ with st.sidebar:
     if uploaded_file is not None:
         try:
             df = pd.read_csv(uploaded_file)
+            
+            # Try cleaning the data first if validation fails
             validation_result = validate_csv_format(df)
             
-            if validation_result['valid']:
+            if not validation_result['valid']:
+                if 'null_info' in validation_result or 'Null values found' in validation_result.get('error', ''):
+                    st.warning("⚠️ Found null values in data. Attempting to clean...")
+                    
+                    # Clean the data
+                    cleaned_df, cleaning_report = clean_merchant_data(df)
+                    
+                    # Show cleaning results
+                    if cleaning_report['removed_count'] > 0:
+                        st.info(f"""
+                        **Data Cleaning Results:**
+                        - Original records: {cleaning_report['original_count']:,}
+                        - Records removed: {cleaning_report['removed_count']:,} ({cleaning_report['removal_percentage']:.1f}%)
+                        - Final records: {cleaning_report['final_count']:,}
+                        """)
+                    
+                    # Validate cleaned data
+                    cleaned_validation = validate_csv_format(cleaned_df)
+                    if cleaned_validation['valid']:
+                        st.session_state.merchant_data = cleaned_df
+                        st.success(f"✅ Loaded {len(cleaned_df)} merchants (after cleaning)")
+                        validation_result = cleaned_validation  # Update validation result
+                    else:
+                        st.error(f"❌ Data cleaning failed: {cleaned_validation['error']}")
+                else:
+                    st.error(f"❌ {validation_result['error']}")
+            else:
                 st.session_state.merchant_data = df
                 st.success(f"✅ Loaded {len(df)} merchants")
+            
+            if validation_result['valid']:
                 
                 # Check for existing circles in CSV
                 existing_circles = []
