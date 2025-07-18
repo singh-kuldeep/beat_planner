@@ -118,17 +118,17 @@ def _display_executive_map(selected_executive, filtered_data):
                         )
                     ).add_to(m)
 
-        # Add existing visit circles with draggable markers
+        # Add only circles with visit days assigned (hide circles without visit days)
         for i, circle in enumerate(st.session_state.territories):
-            if circle['executive'] == selected_executive:
+            if circle['executive'] == selected_executive and 'visit_day' in circle:
                 # Add the circle
                 # Create popup content with visit day info
                 visit_day_display = f"<br><b>Visit Day:</b> {circle.get('visit_day', 'Not assigned')}" if 'visit_day' in circle else ""
                 popup_content = f"<b>Circle:</b> {circle['name']}{visit_day_display}<br><b>Merchants:</b> {circle['merchant_count']}<br><b>Radius:</b> {circle['radius']/1000:.1f} km"
                 
-                # Highlight circles with visit days
-                circle_opacity = 0.6 if 'visit_day' in circle else 0.15
-                circle_weight = 4 if 'visit_day' in circle else 2
+                # Style for circles with visit days (only these are shown now)
+                circle_opacity = 0.6
+                circle_weight = 4
                 
                 folium.Circle(
                     location=[circle['center_lat'], circle['center_lon']],
@@ -148,10 +148,8 @@ def _display_executive_map(selected_executive, filtered_data):
                     icon=folium.Icon(color='red', icon='move', prefix='fa')
                 ).add_to(m)
                 
-                # Add circle name label with visit day
-                label_text = circle['name']
-                if 'visit_day' in circle:
-                    label_text += f" (Day {circle['visit_day']})"
+                # Add circle name label with visit day (all shown circles have visit days)
+                label_text = f"{circle['name']} (Day {circle['visit_day']})"
                 
                 folium.Marker(
                     location=[circle['center_lat'], circle['center_lon']],
