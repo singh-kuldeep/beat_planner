@@ -317,7 +317,7 @@ with st.sidebar:
     employee_file = st.file_uploader(
         "Choose employee CSV file",
         type="csv", 
-        help="Required columns: emp_id, emp_latitude, emp_longitude",
+        help="Required columns: emp_id, latitude, longitude",
         key="employee_file"
     )
     
@@ -325,10 +325,16 @@ with st.sidebar:
     if employee_file is not None:
         try:
             emp_df = pd.read_csv(employee_file)
-            required_emp_columns = ['emp_id', 'emp_latitude', 'emp_longitude']
+            required_emp_columns = ['emp_id', 'latitude', 'longitude']
             
             if all(col in emp_df.columns for col in required_emp_columns):
-                st.session_state.employee_data = emp_df
+                # Rename columns to match internal format
+                emp_df_normalized = emp_df.copy()
+                emp_df_normalized = emp_df_normalized.rename(columns={
+                    'latitude': 'emp_latitude',
+                    'longitude': 'emp_longitude'
+                })
+                st.session_state.employee_data = emp_df_normalized
                 st.success(f"✅ Loaded {len(emp_df)} employee locations")
             else:
                 st.error(f"❌ Employee file must contain: {', '.join(required_emp_columns)}")

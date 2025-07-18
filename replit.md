@@ -74,7 +74,7 @@ Preferred communication style: Simple, everyday language.
 - **Merchant Data Format**: CSV files with specific schema
 - **Required Merchant Fields**: merchant_code, merchant_latitude, merchant_longitude, emp_id
 - **Employee Data Format**: Optional CSV for optimal routing
-- **Required Employee Fields**: emp_id, emp_latitude, emp_longitude
+- **Required Employee Fields**: emp_id, latitude, longitude
 - **Geographic Data**: WGS84 coordinate system (decimal degrees)
 
 ## Deployment Strategy
