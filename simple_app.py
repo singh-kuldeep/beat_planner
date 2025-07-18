@@ -504,16 +504,23 @@ with st.sidebar:
                             
                             # Show results
                             assigned_circles = [t for t in updated_territories if 'visit_day' in t]
+                            total_circles = len([t for t in updated_territories if t.get('executive') in selected_executives])
+                            
                             if assigned_circles:
-                                st.success(f"✅ Assigned visit days to {len(assigned_circles)} circles!")
+                                st.success(f"✅ Assigned visit days to {len(assigned_circles)} top circles out of {total_circles} total circles!")
+                                st.info(f"📊 {total_circles - len(assigned_circles)} circles did not receive visit days (only top {top_circles_count} circles get visit days)")
                                 
                                 # Show visit day assignments by executive
                                 for exec_name in selected_executives:
                                     exec_assigned = [t for t in assigned_circles if t.get('executive') == exec_name]
+                                    exec_total = len([t for t in updated_territories if t.get('executive') == exec_name])
+                                    
                                     if exec_assigned:
-                                        st.write(f"**{exec_name} Visit Schedule:**")
+                                        st.write(f"**{exec_name} Visit Schedule ({len(exec_assigned)}/{exec_total} circles):**")
                                         for circle in sorted(exec_assigned, key=lambda x: x.get('visit_day', 999)):
-                                            st.write(f"  Day {circle.get('visit_day', 'N/A')}: Circle {circle['name']} ({circle['merchant_count']} merchants)")
+                                            st.write(f"  📅 Day {circle.get('visit_day', 'N/A')}: Circle {circle['name']} ({circle['merchant_count']} merchants)")
+                                    else:
+                                        st.write(f"**{exec_name}**: No circles in top {top_circles_count} (has {exec_total} total circles)")
                                 
                                 st.rerun()
                             else:

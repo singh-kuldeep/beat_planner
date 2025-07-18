@@ -547,39 +547,42 @@ class TerritoryManager:
     
     def assign_visit_days(self, territories, employee_data, top_count, assignment_mode, selected_executives):
         """
-        Assign visit days to top circles based on merchant count with optimal routing
+        Assign visit days to ONLY top circles based on merchant count with optimal routing
         
         Args:
             territories: List of territory dictionaries
             employee_data: DataFrame with employee locations (emp_id, emp_latitude, emp_longitude)
-            top_count: Number of top circles to assign visit days
+            top_count: Number of top circles to assign visit days (ONLY these get visit days)
             assignment_mode: "Per Executive" or "Global Ranking"
             selected_executives: List of selected executive IDs
             
         Returns:
-            Updated territories list with visit_day assignments
+            Updated territories list with visit_day assignments ONLY for top circles
         """
-        # Clear existing visit day assignments
+        # Clear ALL existing visit day assignments from ALL circles
         updated_territories = []
         for territory in territories:
             territory_copy = territory.copy()
+            # Remove visit_day from ALL circles (only top ones will get it back)
             if 'visit_day' in territory_copy:
                 del territory_copy['visit_day']
             updated_territories.append(territory_copy)
         
         if assignment_mode == "Per Executive":
-            # Assign top circles per executive
+            # Assign visit days to top circles per executive
             for exec_id in selected_executives:
                 exec_circles = [t for t in updated_territories if t.get('executive') == exec_id]
                 if exec_circles:
-                    # Sort by merchant count (descending)
+                    # Sort by merchant count (descending) to find top circles
                     exec_circles.sort(key=lambda x: x['merchant_count'], reverse=True)
+                    
+                    # ONLY take the top N circles (others get NO visit day)
                     top_exec_circles = exec_circles[:min(top_count, len(exec_circles))]
                     
-                    # Apply optimal routing
+                    # Apply optimal routing starting from employee location
                     ordered_circles = self._optimize_visit_routing(top_exec_circles, exec_id, employee_data)
                     
-                    # Assign visit days (1, 2, 3, ...)
+                    # Assign visit days ONLY to these top circles (1, 2, 3, ...)
                     for day_num, circle in enumerate(ordered_circles, 1):
                         circle['visit_day'] = day_num
         
@@ -591,11 +594,13 @@ class TerritoryManager:
                 all_exec_circles.extend(exec_circles)
             
             if all_exec_circles:
-                # Sort all circles by merchant count (descending)
+                # Sort ALL circles by merchant count (descending)
                 all_exec_circles.sort(key=lambda x: x['merchant_count'], reverse=True)
+                
+                # ONLY take the top N circles globally (others get NO visit day)
                 top_global_circles = all_exec_circles[:min(top_count, len(all_exec_circles))]
                 
-                # Group by executive for routing
+                # Group top circles by executive for routing
                 exec_groups = {}
                 for circle in top_global_circles:
                     exec_id = circle['executive']
@@ -603,12 +608,12 @@ class TerritoryManager:
                         exec_groups[exec_id] = []
                     exec_groups[exec_id].append(circle)
                 
-                # Apply optimal routing per executive
+                # Apply optimal routing per executive for their top circles
                 day_counter = 1
                 for exec_id, circles in exec_groups.items():
                     ordered_circles = self._optimize_visit_routing(circles, exec_id, employee_data)
                     
-                    # Assign visit days
+                    # Assign visit days ONLY to these top circles
                     for circle in ordered_circles:
                         circle['visit_day'] = day_counter
                         day_counter += 1
