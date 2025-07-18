@@ -228,11 +228,7 @@ def _display_executive_map(selected_executive, filtered_data):
                     key=f"download_{selected_executive}"
                 )
                 
-            # Show summary of visit circles
-            st.subheader("📊 Visit Schedule Summary")
-            exec_circles = [t for t in st.session_state.territories if t['executive'] == selected_executive]
-            for circle in exec_circles:
-                st.write(f"**{circle['name']}**: {circle['merchant_count']} merchants")
+
     else:
         st.warning(f"No merchants found for {selected_executive}")
 
@@ -463,80 +459,7 @@ with st.sidebar:
                             for result in results:
                                 st.write(result)
                 
-                # Circle management for selected executives
-                if selected_executives:
-                    st.subheader("🔧 Circle Management")
-                    
-                    for exec_name in selected_executives:
-                        st.write(f"**Circles for {exec_name}:**")
-                        exec_circles = [t for t in st.session_state.territories if t.get('executive') == exec_name]
-                        
-                        # Sort circles alphabetically by name
-                        exec_circles.sort(key=lambda x: x['name'])
-                        
-                        if exec_circles:
-                            for i, circle in enumerate(exec_circles):
-                                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-                                
-                                with col1:
-                                    st.write(f"{circle['name']} - {circle['merchant_count']} merchants")
-                                
-                                with col2:
-                                    if st.button("Edit", key=f"edit_{exec_name}_{i}"):
-                                        st.session_state[f"editing_circle_{exec_name}_{i}"] = True
-                                        st.rerun()
-                                
-                                with col3:
-                                    if st.button("Move", key=f"move_{exec_name}_{i}"):
-                                        st.session_state.move_mode = True
-                                        st.session_state.selected_circle_to_move = i
-                                        st.rerun()
-                                
-                                with col4:
-                                    if st.button("Delete", key=f"delete_{exec_name}_{i}"):
-                                        del st.session_state.territories[st.session_state.territories.index(circle)]
-                                        st.success(f"Deleted circle '{circle['name']}'")
-                                        st.rerun()
-                                
-                                # Edit interface
-                                if st.session_state.get(f"editing_circle_{exec_name}_{i}", False):
-                                    st.write("**Edit Circle:**")
-                                    
-                                    edit_col1, edit_col2 = st.columns(2)
-                                    with edit_col1:
-                                        new_name = st.text_input("Name:", value=circle['name'], key=f"edit_name_{exec_name}_{i}")
-                                        new_radius_km = st.slider("Radius (km):", 0.5, 30.0, circle['radius']/1000, 0.5, key=f"edit_radius_{exec_name}_{i}")
-                                    with edit_col2:
-                                        new_color = st.color_picker("Color:", value=circle['color'], key=f"edit_color_{exec_name}_{i}")
-                                    
-                                    col_save, col_cancel = st.columns(2)
-                                    with col_save:
-                                        if st.button("Save Changes", key=f"save_{exec_name}_{i}"):
-                                            # Update circle
-                                            original_index = st.session_state.territories.index(circle)
-                                            st.session_state.territories[original_index]['name'] = new_name
-                                            st.session_state.territories[original_index]['color'] = new_color
-                                            st.session_state.territories[original_index]['radius'] = new_radius_km * 1000
-                                            
-                                            # Recalculate merchants in updated circle
-                                            filtered_data = df[df['emp_id'] == exec_name]
-                                            new_merchants = st.session_state.territory_manager.get_merchants_in_circle(
-                                                filtered_data, circle['center_lat'], circle['center_lon'], new_radius_km * 1000
-                                            )
-                                            st.session_state.territories[original_index]['merchants'] = new_merchants
-                                            st.session_state.territories[original_index]['merchant_count'] = len(new_merchants)
-                                            
-                                            st.session_state[f"editing_circle_{exec_name}_{i}"] = False
-                                            st.success("Changes saved!")
-                                            st.rerun()
-                                    
-                                    with col_cancel:
-                                        if st.button("Cancel", key=f"cancel_{exec_name}_{i}"):
-                                            st.session_state[f"editing_circle_{exec_name}_{i}"] = False
-                                            st.rerun()
-                        else:
-                            st.info(f"No circles created yet for {exec_name}")
-                
+
                 # Visit Day Assignment Section
                 st.subheader("📅 Visit Day Assignment")
                 st.info("Assign visit days to top circles based on merchant count with optimal routing")
