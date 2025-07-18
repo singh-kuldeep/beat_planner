@@ -200,7 +200,13 @@ class TerritoryManager:
         for circle in sorted_territories:
             for merchant_code in circle['merchants']:
                 mask = export_df['merchant_code'] == merchant_code
-                export_df.loc[mask, 'visit_day'] = circle['name']
+                
+                # Only assign visit day if the circle has one (top circles only)
+                if 'visit_day' in circle:
+                    export_df.loc[mask, 'visit_day'] = circle['visit_day']
+                else:
+                    export_df.loc[mask, 'visit_day'] = 'Unassigned'
+                    
                 export_df.loc[mask, 'circle_name'] = circle['name']
                 export_df.loc[mask, 'circle_center_lat'] = circle['center_lat']
                 export_df.loc[mask, 'circle_center_lon'] = circle['center_lon']
