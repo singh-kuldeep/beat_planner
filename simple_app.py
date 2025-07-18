@@ -67,6 +67,57 @@ def _display_executive_map(selected_executive, filtered_data):
                 fillOpacity=0.8
             ).add_to(m)
         
+        # Add visit route visualization for circles with visit days
+        visit_circles = [c for c in st.session_state.territories 
+                        if c['executive'] == selected_executive and 'visit_day' in c]
+        
+        if visit_circles and st.session_state.employee_data is not None:
+            # Sort circles by visit day for route visualization
+            visit_circles.sort(key=lambda x: x['visit_day'])
+            
+            # Get employee starting location
+            emp_location = st.session_state.employee_data[
+                st.session_state.employee_data['emp_id'] == selected_executive
+            ]
+            
+            if len(emp_location) > 0:
+                start_lat = emp_location.iloc[0]['emp_latitude']
+                start_lon = emp_location.iloc[0]['emp_longitude']
+                
+                # Add employee starting point marker
+                folium.Marker(
+                    location=[start_lat, start_lon],
+                    popup=f"Employee Start: {selected_executive}",
+                    icon=folium.Icon(color='green', icon='play', prefix='fa')
+                ).add_to(m)
+                
+                # Create route path
+                route_coordinates = [[start_lat, start_lon]]
+                route_coordinates.extend([[c['center_lat'], c['center_lon']] for c in visit_circles])
+                
+                # Add route line
+                folium.PolyLine(
+                    locations=route_coordinates,
+                    color='red',
+                    weight=4,
+                    opacity=0.8,
+                    popup="Visit Route"
+                ).add_to(m)
+                
+                # Add route direction arrows
+                for i in range(len(route_coordinates) - 1):
+                    mid_lat = (route_coordinates[i][0] + route_coordinates[i+1][0]) / 2
+                    mid_lon = (route_coordinates[i][1] + route_coordinates[i+1][1]) / 2
+                    
+                    folium.Marker(
+                        location=[mid_lat, mid_lon],
+                        icon=folium.DivIcon(
+                            html=f'<div style="color: red; font-size: 16px; font-weight: bold;">→</div>',
+                            icon_size=(20, 20),
+                            icon_anchor=(10, 10)
+                        )
+                    ).add_to(m)
+
         # Add existing visit circles with draggable markers
         for i, circle in enumerate(st.session_state.territories):
             if circle['executive'] == selected_executive:
@@ -75,12 +126,16 @@ def _display_executive_map(selected_executive, filtered_data):
                 visit_day_display = f"<br><b>Visit Day:</b> {circle.get('visit_day', 'Not assigned')}" if 'visit_day' in circle else ""
                 popup_content = f"<b>Circle:</b> {circle['name']}{visit_day_display}<br><b>Merchants:</b> {circle['merchant_count']}<br><b>Radius:</b> {circle['radius']/1000:.1f} km"
                 
+                # Highlight circles with visit days
+                circle_opacity = 0.6 if 'visit_day' in circle else 0.15
+                circle_weight = 4 if 'visit_day' in circle else 2
+                
                 folium.Circle(
                     location=[circle['center_lat'], circle['center_lon']],
                     radius=circle['radius'],
                     color=circle['color'],
-                    weight=3,
-                    fillOpacity=0.15,
+                    weight=circle_weight,
+                    fillOpacity=circle_opacity,
                     popup=popup_content
                 ).add_to(m)
                 
@@ -93,13 +148,17 @@ def _display_executive_map(selected_executive, filtered_data):
                     icon=folium.Icon(color='red', icon='move', prefix='fa')
                 ).add_to(m)
                 
-                # Add circle name label
+                # Add circle name label with visit day
+                label_text = circle['name']
+                if 'visit_day' in circle:
+                    label_text += f" (Day {circle['visit_day']})"
+                
                 folium.Marker(
                     location=[circle['center_lat'], circle['center_lon']],
                     icon=folium.DivIcon(
-                        html=f'<div style="background-color: {circle["color"]}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-top: 25px;">{circle["name"]}</div>',
-                        icon_size=(80, 20),
-                        icon_anchor=(40, 10)
+                        html=f'<div style="background-color: {circle["color"]}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-top: 25px;">{label_text}</div>',
+                        icon_size=(100, 20),
+                        icon_anchor=(50, 10)
                     )
                 ).add_to(m)
         
