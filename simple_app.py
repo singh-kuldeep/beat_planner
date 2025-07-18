@@ -196,44 +196,7 @@ def _display_executive_map(selected_executive, filtered_data):
                         st.success(f"✅ Moved '{circle_to_move['name']}' to new location with {len(new_merchants)} merchants")
                         st.rerun()
                 
-                # Handle visit circle creation (only if not in move mode)
-                else:
-                    # Check if manual circle creation parameters are set
-                    if hasattr(st.session_state, 'visit_day') and hasattr(st.session_state, 'target_executive') and hasattr(st.session_state, 'radius_km') and hasattr(st.session_state, 'circle_color'):
-                        if (st.session_state.visit_day and st.session_state.target_executive == selected_executive and 
-                            st.session_state.visit_day.strip()):
-                            
-                            radius_meters = st.session_state.radius_km * 1000
-                            
-                            # Get merchants in the circle
-                            merchants_in_circle = st.session_state.territory_manager.get_merchants_in_circle(
-                                filtered_data, clicked_lat, clicked_lon, radius_meters
-                            )
-                            
-                            # Create a single circle (no automatic splitting)
-                            new_circle = {
-                                'name': st.session_state.visit_day.strip(),
-                                'center_lat': clicked_lat,
-                                'center_lon': clicked_lon,
-                                'radius': radius_meters,
-                                'color': st.session_state.circle_color,
-                                'merchants': merchants_in_circle,
-                                'merchant_count': len(merchants_in_circle),
-                                'executive': selected_executive
-                            }
-                            
-                            # Add to territories list
-                            st.session_state.territories.append(new_circle)
-                            
-                            # Clear the creation parameters
-                            del st.session_state.visit_day
-                            del st.session_state.target_executive
-                            del st.session_state.radius_km
-                            del st.session_state.circle_color
-                            
-                            # Show results
-                            st.success(f"✅ Created visit circle '{new_circle['name']}' with {new_circle['merchant_count']} merchants")
-                            st.rerun()
+                # No manual circle creation - only auto-recommendation available
         
         except Exception as e:
             st.error(f"Map loading error: {str(e)}")
@@ -410,30 +373,6 @@ with st.sidebar:
                     options=sales_executives,
                     default=sales_executives[:1] if sales_executives else []
                 )
-                
-                # Visit circle creation (manual)
-                if selected_executives:
-                    st.subheader("Create Visit Circle (Manual)")
-                    st.info("A visit circle represents the area a sales person will cover in one day")
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        visit_day = st.text_input("Visit Day/Name:", placeholder="e.g., Monday, Day1, Circle_1")
-                        radius_km = st.slider("Circle Radius (km):", 0.5, 30.0, 10.0, 0.5)
-                        target_executive = st.selectbox("Assign to Executive:", options=selected_executives)
-                    with col2:
-                        circle_color = st.color_picker("Circle Color:", "#FF0000")
-                        max_merchants_per_circle = st.number_input("Max merchants per circle:", min_value=1, max_value=50, value=11)
-                    
-                    if visit_day and target_executive:
-                        # Store parameters in session state for map click handling
-                        st.session_state.visit_day = visit_day
-                        st.session_state.target_executive = target_executive
-                        st.session_state.radius_km = radius_km
-                        st.session_state.circle_color = circle_color
-                        
-                        st.success(f"Ready! Click on the {target_executive} map to create '{visit_day}' circle")
-                        st.info("Circle will be created when you click on the map in the executive's tab below")
                 
                 # Auto-recommendation section
                 st.subheader("🤖 Auto Recommend Circles")
