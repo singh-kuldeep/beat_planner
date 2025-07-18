@@ -51,7 +51,8 @@ def _display_executive_map(selected_executive, filtered_data):
             # Set marker color based on assignment
             if assigned_circle:
                 marker_color = assigned_circle['color']
-                popup_text = f"Merchant: {row['merchant_code']}<br>Visit Day: {assigned_circle['name']}"
+                visit_day_text = f" (Day {assigned_circle.get('visit_day', 'N/A')})" if 'visit_day' in assigned_circle else ""
+                popup_text = f"Merchant: {row['merchant_code']}<br>Circle: {assigned_circle['name']}{visit_day_text}"
             else:
                 marker_color = 'blue'
                 popup_text = f"Merchant: {row['merchant_code']}<br>Status: Unassigned"
@@ -70,13 +71,17 @@ def _display_executive_map(selected_executive, filtered_data):
         for i, circle in enumerate(st.session_state.territories):
             if circle['executive'] == selected_executive:
                 # Add the circle
+                # Create popup content with visit day info
+                visit_day_display = f"<br><b>Visit Day:</b> {circle.get('visit_day', 'Not assigned')}" if 'visit_day' in circle else ""
+                popup_content = f"<b>Circle:</b> {circle['name']}{visit_day_display}<br><b>Merchants:</b> {circle['merchant_count']}<br><b>Radius:</b> {circle['radius']/1000:.1f} km"
+                
                 folium.Circle(
                     location=[circle['center_lat'], circle['center_lon']],
                     radius=circle['radius'],
                     color=circle['color'],
                     weight=3,
                     fillOpacity=0.15,
-                    popup=f"<b>Visit Day:</b> {circle['name']}<br><b>Merchants:</b> {circle['merchant_count']}<br><b>Radius:</b> {circle['radius']/1000:.1f} km"
+                    popup=popup_content
                 ).add_to(m)
                 
                 # Add draggable center marker
@@ -288,18 +293,47 @@ if 'move_mode' not in st.session_state:
     st.session_state.move_mode = False
 if 'selected_circle_to_move' not in st.session_state:
     st.session_state.selected_circle_to_move = None
+if 'employee_data' not in st.session_state:
+    st.session_state.employee_data = None
 
 st.title("🗺️ Sales Visit Planning System")
 
 # Create sidebar for file upload
 with st.sidebar:
-    st.header("Upload Merchant Data")
+    st.header("📂 Upload Data Files")
     
+    # Merchant data upload
+    st.subheader("1. Merchant Data")
     uploaded_file = st.file_uploader(
-        "Choose CSV file",
+        "Choose merchant CSV file",
         type="csv",
-        help="Required columns: merchant_code, merchant_latitude, merchant_longitude, emp_id"
+        help="Required columns: merchant_code, merchant_latitude, merchant_longitude, emp_id",
+        key="merchant_file"
     )
+    
+    # Employee location upload (optional)
+    st.subheader("2. Employee Location (Optional)")
+    st.info("Upload employee locations for optimal visit day routing")
+    employee_file = st.file_uploader(
+        "Choose employee CSV file",
+        type="csv", 
+        help="Required columns: emp_id, emp_latitude, emp_longitude",
+        key="employee_file"
+    )
+    
+    # Handle employee file upload
+    if employee_file is not None:
+        try:
+            emp_df = pd.read_csv(employee_file)
+            required_emp_columns = ['emp_id', 'emp_latitude', 'emp_longitude']
+            
+            if all(col in emp_df.columns for col in required_emp_columns):
+                st.session_state.employee_data = emp_df
+                st.success(f"✅ Loaded {len(emp_df)} employee locations")
+            else:
+                st.error(f"❌ Employee file must contain: {', '.join(required_emp_columns)}")
+        except Exception as e:
+            st.error(f"Error reading employee file: {str(e)}")
     
     if uploaded_file is not None:
         try:
@@ -527,6 +561,70 @@ with st.sidebar:
                                             st.rerun()
                         else:
                             st.info(f"No circles created yet for {exec_name}")
+                
+                # Visit Day Assignment Section
+                st.subheader("📅 Visit Day Assignment")
+                st.info("Assign visit days to top circles based on merchant count with optimal routing")
+                
+                # Get all circles across all selected executives
+                all_circles = []
+                for exec_name in selected_executives:
+                    exec_circles = [t for t in st.session_state.territories if t.get('executive') == exec_name]
+                    all_circles.extend([(circle, exec_name) for circle in exec_circles])
+                
+                if all_circles:
+                    visit_col1, visit_col2 = st.columns(2)
+                    
+                    with visit_col1:
+                        top_circles_count = st.number_input(
+                            "Number of top circles to assign visit days:",
+                            min_value=1,
+                            max_value=len(all_circles),
+                            value=min(5, len(all_circles)),
+                            help="Select how many circles (by merchant count) should get visit days"
+                        )
+                    
+                    with visit_col2:
+                        visit_day_mode = st.radio(
+                            "Assignment mode:",
+                            ["Per Executive", "Global Ranking"],
+                            help="Per Executive: Top X circles per executive\nGlobal: Top X circles across all executives"
+                        )
+                    
+                    if st.button("🗓️ Assign Visit Days", type="primary"):
+                        try:
+                            # Use territory manager to assign visit days
+                            updated_territories = st.session_state.territory_manager.assign_visit_days(
+                                st.session_state.territories,
+                                st.session_state.employee_data,
+                                top_circles_count,
+                                visit_day_mode,
+                                selected_executives
+                            )
+                            
+                            st.session_state.territories = updated_territories
+                            
+                            # Show results
+                            assigned_circles = [t for t in updated_territories if 'visit_day' in t]
+                            if assigned_circles:
+                                st.success(f"✅ Assigned visit days to {len(assigned_circles)} circles!")
+                                
+                                # Show visit day assignments by executive
+                                for exec_name in selected_executives:
+                                    exec_assigned = [t for t in assigned_circles if t.get('executive') == exec_name]
+                                    if exec_assigned:
+                                        st.write(f"**{exec_name} Visit Schedule:**")
+                                        for circle in sorted(exec_assigned, key=lambda x: x.get('visit_day', 999)):
+                                            st.write(f"  Day {circle.get('visit_day', 'N/A')}: Circle {circle['name']} ({circle['merchant_count']} merchants)")
+                                
+                                st.rerun()
+                            else:
+                                st.warning("No circles were assigned visit days")
+                                
+                        except Exception as e:
+                            st.error(f"Error assigning visit days: {str(e)}")
+                else:
+                    st.info("Create some circles first to assign visit days")
                 
 
                 

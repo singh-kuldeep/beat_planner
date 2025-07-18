@@ -544,3 +544,149 @@ class TerritoryManager:
         """
         # Use the optimized version
         return self._find_optimal_center_fast(merchant_data, radius_meters, 20)
+    
+    def assign_visit_days(self, territories, employee_data, top_count, assignment_mode, selected_executives):
+        """
+        Assign visit days to top circles based on merchant count with optimal routing
+        
+        Args:
+            territories: List of territory dictionaries
+            employee_data: DataFrame with employee locations (emp_id, emp_latitude, emp_longitude)
+            top_count: Number of top circles to assign visit days
+            assignment_mode: "Per Executive" or "Global Ranking"
+            selected_executives: List of selected executive IDs
+            
+        Returns:
+            Updated territories list with visit_day assignments
+        """
+        # Clear existing visit day assignments
+        updated_territories = []
+        for territory in territories:
+            territory_copy = territory.copy()
+            if 'visit_day' in territory_copy:
+                del territory_copy['visit_day']
+            updated_territories.append(territory_copy)
+        
+        if assignment_mode == "Per Executive":
+            # Assign top circles per executive
+            for exec_id in selected_executives:
+                exec_circles = [t for t in updated_territories if t.get('executive') == exec_id]
+                if exec_circles:
+                    # Sort by merchant count (descending)
+                    exec_circles.sort(key=lambda x: x['merchant_count'], reverse=True)
+                    top_exec_circles = exec_circles[:min(top_count, len(exec_circles))]
+                    
+                    # Apply optimal routing
+                    ordered_circles = self._optimize_visit_routing(top_exec_circles, exec_id, employee_data)
+                    
+                    # Assign visit days (1, 2, 3, ...)
+                    for day_num, circle in enumerate(ordered_circles, 1):
+                        circle['visit_day'] = day_num
+        
+        else:  # Global Ranking
+            # Get all circles from selected executives
+            all_exec_circles = []
+            for exec_id in selected_executives:
+                exec_circles = [t for t in updated_territories if t.get('executive') == exec_id]
+                all_exec_circles.extend(exec_circles)
+            
+            if all_exec_circles:
+                # Sort all circles by merchant count (descending)
+                all_exec_circles.sort(key=lambda x: x['merchant_count'], reverse=True)
+                top_global_circles = all_exec_circles[:min(top_count, len(all_exec_circles))]
+                
+                # Group by executive for routing
+                exec_groups = {}
+                for circle in top_global_circles:
+                    exec_id = circle['executive']
+                    if exec_id not in exec_groups:
+                        exec_groups[exec_id] = []
+                    exec_groups[exec_id].append(circle)
+                
+                # Apply optimal routing per executive
+                day_counter = 1
+                for exec_id, circles in exec_groups.items():
+                    ordered_circles = self._optimize_visit_routing(circles, exec_id, employee_data)
+                    
+                    # Assign visit days
+                    for circle in ordered_circles:
+                        circle['visit_day'] = day_counter
+                        day_counter += 1
+        
+        return updated_territories
+    
+    def _optimize_visit_routing(self, circles, exec_id, employee_data):
+        """
+        Optimize visit routing to minimize travel distance
+        
+        Args:
+            circles: List of circles to optimize routing for
+            exec_id: Executive ID
+            employee_data: Employee location data
+            
+        Returns:
+            Optimally ordered list of circles
+        """
+        if len(circles) <= 1:
+            return circles
+        
+        # Try to get employee starting location
+        start_lat, start_lon = None, None
+        if employee_data is not None:
+            emp_location = employee_data[employee_data['emp_id'] == exec_id]
+            if len(emp_location) > 0:
+                start_lat = emp_location.iloc[0]['emp_latitude']
+                start_lon = emp_location.iloc[0]['emp_longitude']
+        
+        # If no employee location, use geometric center of circles
+        if start_lat is None or start_lon is None:
+            start_lat = np.mean([c['center_lat'] for c in circles])
+            start_lon = np.mean([c['center_lon'] for c in circles])
+        
+        # Use nearest neighbor algorithm for routing optimization
+        return self._nearest_neighbor_routing(circles, start_lat, start_lon)
+    
+    def _nearest_neighbor_routing(self, circles, start_lat, start_lon):
+        """
+        Apply nearest neighbor algorithm for optimal routing
+        
+        Args:
+            circles: List of circles to route
+            start_lat: Starting latitude
+            start_lon: Starting longitude
+            
+        Returns:
+            Optimally ordered list of circles
+        """
+        if len(circles) <= 1:
+            return circles
+        
+        # Find closest circle to starting point
+        unvisited = circles.copy()
+        route = []
+        current_lat, current_lon = start_lat, start_lon
+        
+        while unvisited:
+            # Find nearest unvisited circle
+            min_distance = float('inf')
+            nearest_circle = None
+            nearest_index = -1
+            
+            for i, circle in enumerate(unvisited):
+                distance = self.haversine_distance(
+                    current_lat, current_lon,
+                    circle['center_lat'], circle['center_lon']
+                )
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_circle = circle
+                    nearest_index = i
+            
+            # Add nearest circle to route
+            if nearest_circle:
+                route.append(nearest_circle)
+                current_lat = nearest_circle['center_lat']
+                current_lon = nearest_circle['center_lon']
+                unvisited.pop(nearest_index)
+        
+        return route
