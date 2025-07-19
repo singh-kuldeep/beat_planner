@@ -485,7 +485,7 @@ with st.sidebar:
                     
                     with auto_col1:
                         auto_radius_km = st.slider("Auto Circle Radius (km):", 0.5, 30.0, 15.0, 0.5, key="auto_radius")
-                        auto_max_merchants = st.number_input("Max merchants per auto circle:", min_value=1, max_value=50, value=11, key="auto_max")
+                        auto_max_merchants = st.number_input("Max merchants per auto circle:", min_value=1, max_value=50, value=15, key="auto_max")
                     
                     with auto_col2:
                         st.info("Circle names will be integers: 1, 2, 3, etc.")
@@ -569,7 +569,7 @@ with st.sidebar:
                             "Number of top circles to assign visit days:",
                             min_value=1,
                             max_value=len(all_circles),
-                            value=min(5, len(all_circles)),
+                            value=min(9, len(all_circles)),
                             help="Select how many circles (by merchant count) should get visit days"
                         )
                     
