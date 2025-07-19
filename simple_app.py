@@ -39,6 +39,41 @@ def _display_executive_map(selected_executive, filtered_data):
             zoom_start=10
         )
         
+        # Add sales person location marker first (if available)
+        if st.session_state.employee_data is not None:
+            emp_location = st.session_state.employee_data[
+                st.session_state.employee_data['emp_id'] == selected_executive
+            ]
+            
+            if len(emp_location) > 0:
+                try:
+                    emp_lat = emp_location.iloc[0]['emp_latitude']
+                    emp_lon = emp_location.iloc[0]['emp_longitude']
+                    
+                    # Add prominent "You are here" flag marker
+                    folium.Marker(
+                        location=[emp_lat, emp_lon],
+                        popup=f"🚩 You are here<br><b>{selected_executive}</b><br>Starting Location",
+                        icon=folium.Icon(color='green', icon='flag', prefix='fa'),
+                        tooltip="Sales Person Starting Location"
+                    ).add_to(m)
+                    
+                except (KeyError, IndexError):
+                    try:
+                        emp_lat = emp_location.iloc[0]['latitude']
+                        emp_lon = emp_location.iloc[0]['longitude']
+                        
+                        # Add prominent "You are here" flag marker
+                        folium.Marker(
+                            location=[emp_lat, emp_lon],
+                            popup=f"🚩 You are here<br><b>{selected_executive}</b><br>Starting Location",
+                            icon=folium.Icon(color='green', icon='flag', prefix='fa'),
+                            tooltip="Sales Person Starting Location"
+                        ).add_to(m)
+                        
+                    except (KeyError, IndexError):
+                        pass
+        
         # Add merchant markers
         for idx, row in filtered_data.iterrows():
             # Check if merchant is assigned to any visit circle
@@ -106,12 +141,8 @@ def _display_executive_map(selected_executive, filtered_data):
                     icon=folium.Icon(color='darkgreen', icon='play', prefix='fa')
                 ).add_to(m)
             else:
-                # Add employee starting point marker in green
-                folium.Marker(
-                    location=[start_lat, start_lon],
-                    popup=f"🟢 Employee Start: {selected_executive}",
-                    icon=folium.Icon(color='green', icon='home', prefix='fa')
-                ).add_to(m)
+                # Add employee starting point marker for route (already added above, so just note the route start)
+                pass
             
             # Create route path connecting all visit circles
             route_coordinates = [[start_lat, start_lon]]
