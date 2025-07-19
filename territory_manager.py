@@ -333,10 +333,21 @@ class TerritoryManager:
         
         while len(remaining_data) > 0:
             if len(remaining_data) <= max_merchants_per_circle:
-                # If remaining merchants are few, create one final circle covering all
-                center_lat = remaining_data['merchant_latitude'].mean()
-                center_lon = remaining_data['merchant_longitude'].mean()
-                merchants_in_circle = remaining_data['merchant_code'].tolist()
+                # If remaining merchants are few, find optimal center and validate radius compliance
+                center_lat, center_lon = self._find_optimal_center_fast(remaining_data, radius_meters, max_merchants_per_circle)
+                
+                # Get merchants within the specified radius only
+                merchants_in_circle = self._get_merchants_in_circle_fast(
+                    remaining_data, center_lat, center_lon, radius_meters, max_merchants_per_circle
+                )
+                
+                # If not all remaining merchants fit within radius, process them in smaller batches
+                if len(merchants_in_circle) < len(remaining_data):
+                    # Continue with normal processing instead of forcing all remaining merchants
+                    pass
+                else:
+                    # All remaining merchants fit within radius - we can assign them all
+                    pass
                 
                 # Always use the user-specified radius (no dynamic sizing)
                 actual_radius = radius_meters
@@ -390,26 +401,23 @@ class TerritoryManager:
             
             # Safety check to prevent infinite loop
             if circle_count > 100:
-                # If we hit the limit, assign all remaining merchants to the last circle
-                if len(remaining_data) > 0:
-                    final_merchants = remaining_data['merchant_code'].tolist()
-                    if circles:  # Add to last circle
-                        circles[-1]['merchants'].extend(final_merchants)
-                        circles[-1]['merchant_count'] = len(circles[-1]['merchants'])
-                    else:  # Create a final circle
-                        center_lat = remaining_data['merchant_latitude'].mean()
-                        center_lon = remaining_data['merchant_longitude'].mean()
-                        final_circle = {
-                            'name': str(circle_count + 1),
-                            'center_lat': center_lat,
-                            'center_lon': center_lon,
-                            'radius': radius_meters,  # Use consistent radius
-                            'color': color,
-                            'merchants': final_merchants,
-                            'merchant_count': len(final_merchants),
-                            'executive': executive
-                        }
-                        circles.append(final_circle)
+                # If we hit the limit, create individual circles for remaining merchants
+                # This maintains radius compliance by creating single-merchant circles
+                while len(remaining_data) > 0:
+                    merchant = remaining_data.iloc[0]
+                    single_circle = {
+                        'name': str(circle_count + 1),
+                        'center_lat': merchant['merchant_latitude'],
+                        'center_lon': merchant['merchant_longitude'],
+                        'radius': radius_meters,  # Use consistent radius
+                        'color': color,
+                        'merchants': [merchant['merchant_code']],
+                        'merchant_count': 1,
+                        'executive': executive
+                    }
+                    circles.append(single_circle)
+                    remaining_data = remaining_data.iloc[1:].reset_index(drop=True)
+                    circle_count += 1
                 break
         
         return circles
@@ -494,10 +502,10 @@ class TerritoryManager:
         merchants_within_count = np.sum(within_radius)
         
         if merchants_within_count == 0:
-            # If no merchants within radius, take the closest ones up to max_merchants
-            # This ensures we always assign merchants
-            closest_indices = np.argsort(distances)[:min(max_merchants, len(merchant_data))]
-            return merchant_data.iloc[closest_indices]['merchant_code'].tolist()
+            # If no merchants within radius, take only the single closest merchant to maintain radius compliance
+            # This ensures strict radius compliance while still making progress
+            closest_index = np.argmin(distances)
+            return [merchant_data.iloc[closest_index]['merchant_code']]
         
         # Get merchants within radius
         merchants_in_radius = merchant_data[within_radius]
