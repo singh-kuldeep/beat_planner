@@ -71,52 +71,79 @@ def _display_executive_map(selected_executive, filtered_data):
         visit_circles = [c for c in st.session_state.territories 
                         if c['executive'] == selected_executive and 'visit_day' in c]
         
-        if visit_circles and st.session_state.employee_data is not None:
+        if visit_circles:
             # Sort circles by visit day for route visualization
             visit_circles.sort(key=lambda x: x['visit_day'])
             
-            # Get employee starting location
-            emp_location = st.session_state.employee_data[
-                st.session_state.employee_data['emp_id'] == selected_executive
-            ]
-            
-            if len(emp_location) > 0:
-                start_lat = emp_location.iloc[0]['emp_latitude']
-                start_lon = emp_location.iloc[0]['emp_longitude']
+            # Try to get employee starting location
+            start_lat, start_lon = None, None
+            if st.session_state.employee_data is not None:
+                emp_location = st.session_state.employee_data[
+                    st.session_state.employee_data['emp_id'] == selected_executive
+                ]
                 
+                if len(emp_location) > 0:
+                    # Use correct column names for employee location
+                    start_lat = emp_location.iloc[0]['latitude']
+                    start_lon = emp_location.iloc[0]['longitude']
+            
+            # If no employee location, use center of first circle as starting point
+            if start_lat is None or start_lon is None:
+                start_lat = visit_circles[0]['center_lat']
+                start_lon = visit_circles[0]['center_lon']
+                
+                # Add starting point marker (using first circle location)
+                folium.Marker(
+                    location=[start_lat, start_lon],
+                    popup=f"Route Start: {selected_executive}",
+                    icon=folium.Icon(color='darkgreen', icon='play', prefix='fa')
+                ).add_to(m)
+            else:
                 # Add employee starting point marker
                 folium.Marker(
                     location=[start_lat, start_lon],
                     popup=f"Employee Start: {selected_executive}",
                     icon=folium.Icon(color='green', icon='play', prefix='fa')
                 ).add_to(m)
-                
-                # Create route path
-                route_coordinates = [[start_lat, start_lon]]
-                route_coordinates.extend([[c['center_lat'], c['center_lon']] for c in visit_circles])
-                
-                # Add route line
-                folium.PolyLine(
-                    locations=route_coordinates,
-                    color='red',
-                    weight=4,
-                    opacity=0.8,
-                    popup="Visit Route"
+            
+            # Create route path connecting all visit circles
+            route_coordinates = [[start_lat, start_lon]]
+            route_coordinates.extend([[c['center_lat'], c['center_lon']] for c in visit_circles])
+            
+            # Add thick, visible route line
+            folium.PolyLine(
+                locations=route_coordinates,
+                color='red',
+                weight=6,
+                opacity=1.0,
+                popup="Visit Route - Click for details"
+            ).add_to(m)
+            
+            # Add numbered waypoint markers for each visit circle
+            for i, circle in enumerate(visit_circles):
+                folium.Marker(
+                    location=[circle['center_lat'], circle['center_lon']],
+                    popup=f"Stop {i+1}: {circle['name']} (Day {circle['visit_day']})",
+                    icon=folium.DivIcon(
+                        html=f'<div style="background-color: red; color: white; border-radius: 50%; width: 25px; height: 25px; text-align: center; line-height: 25px; font-weight: bold; font-size: 12px;">{i+1}</div>',
+                        icon_size=(25, 25),
+                        icon_anchor=(12, 12)
+                    )
                 ).add_to(m)
+            
+            # Add route direction arrows between stops
+            for i in range(len(route_coordinates) - 1):
+                mid_lat = (route_coordinates[i][0] + route_coordinates[i+1][0]) / 2
+                mid_lon = (route_coordinates[i][1] + route_coordinates[i+1][1]) / 2
                 
-                # Add route direction arrows
-                for i in range(len(route_coordinates) - 1):
-                    mid_lat = (route_coordinates[i][0] + route_coordinates[i+1][0]) / 2
-                    mid_lon = (route_coordinates[i][1] + route_coordinates[i+1][1]) / 2
-                    
-                    folium.Marker(
-                        location=[mid_lat, mid_lon],
-                        icon=folium.DivIcon(
-                            html=f'<div style="color: red; font-size: 16px; font-weight: bold;">→</div>',
-                            icon_size=(20, 20),
-                            icon_anchor=(10, 10)
-                        )
-                    ).add_to(m)
+                folium.Marker(
+                    location=[mid_lat, mid_lon],
+                    icon=folium.DivIcon(
+                        html=f'<div style="color: red; font-size: 20px; font-weight: bold; text-shadow: 1px 1px 1px white;">→</div>',
+                        icon_size=(25, 25),
+                        icon_anchor=(12, 12)
+                    )
+                ).add_to(m)
 
         # Add only circles with visit days assigned (hide circles without visit days)
         for i, circle in enumerate(st.session_state.territories):
