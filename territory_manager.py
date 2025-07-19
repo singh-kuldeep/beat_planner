@@ -338,19 +338,8 @@ class TerritoryManager:
                 center_lon = remaining_data['merchant_longitude'].mean()
                 merchants_in_circle = remaining_data['merchant_code'].tolist()
                 
-                # Ensure radius covers all remaining merchants
-                if len(remaining_data) > 1:
-                    max_distance = 0
-                    for _, merchant in remaining_data.iterrows():
-                        distance = self.haversine_distance(
-                            center_lat, center_lon,
-                            merchant['merchant_latitude'], merchant['merchant_longitude']
-                        )
-                        max_distance = max(max_distance, distance)
-                    # Add 20% buffer to ensure coverage
-                    actual_radius = max(radius_meters, max_distance * 1.2)
-                else:
-                    actual_radius = radius_meters
+                # Always use the user-specified radius (no dynamic sizing)
+                actual_radius = radius_meters
             else:
                 # Find optimal center using fast algorithm
                 center_lat, center_lon = self._find_optimal_center_fast(remaining_data, radius_meters, max_merchants_per_circle)
@@ -414,7 +403,7 @@ class TerritoryManager:
                             'name': str(circle_count + 1),
                             'center_lat': center_lat,
                             'center_lon': center_lon,
-                            'radius': radius_meters * 2,  # Larger radius to ensure coverage
+                            'radius': radius_meters,  # Use consistent radius
                             'color': color,
                             'merchants': final_merchants,
                             'merchant_count': len(final_merchants),
