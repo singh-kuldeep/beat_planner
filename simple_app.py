@@ -50,11 +50,15 @@ def _display_executive_map(selected_executive, filtered_data):
                     emp_lat = emp_location.iloc[0]['emp_latitude']
                     emp_lon = emp_location.iloc[0]['emp_longitude']
                     
-                    # Add prominent "You are here" flag marker
+                    # Add prominent "You are here" flag marker (3x larger than circle markers)
                     folium.Marker(
                         location=[emp_lat, emp_lon],
                         popup=f"🚩 You are here<br><b>{selected_executive}</b><br>Starting Location",
-                        icon=folium.Icon(color='green', icon='flag', prefix='fa'),
+                        icon=folium.DivIcon(
+                            html=f'<div style="background-color: green; color: white; border-radius: 50%; width: 75px; height: 75px; text-align: center; line-height: 75px; font-weight: bold; font-size: 30px; border: 4px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">🚩</div>',
+                            icon_size=(75, 75),
+                            icon_anchor=(37, 37)
+                        ),
                         tooltip="Sales Person Starting Location"
                     ).add_to(m)
                     
@@ -63,11 +67,15 @@ def _display_executive_map(selected_executive, filtered_data):
                         emp_lat = emp_location.iloc[0]['latitude']
                         emp_lon = emp_location.iloc[0]['longitude']
                         
-                        # Add prominent "You are here" flag marker
+                        # Add prominent "You are here" flag marker (3x larger than circle markers)
                         folium.Marker(
                             location=[emp_lat, emp_lon],
                             popup=f"🚩 You are here<br><b>{selected_executive}</b><br>Starting Location",
-                            icon=folium.Icon(color='green', icon='flag', prefix='fa'),
+                            icon=folium.DivIcon(
+                                html=f'<div style="background-color: green; color: white; border-radius: 50%; width: 75px; height: 75px; text-align: center; line-height: 75px; font-weight: bold; font-size: 30px; border: 4px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">🚩</div>',
+                                icon_size=(75, 75),
+                                icon_anchor=(37, 37)
+                            ),
                             tooltip="Sales Person Starting Location"
                         ).add_to(m)
                         
