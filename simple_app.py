@@ -83,9 +83,16 @@ def _display_executive_map(selected_executive, filtered_data):
                 ]
                 
                 if len(emp_location) > 0:
-                    # Use correct column names for employee location
-                    start_lat = emp_location.iloc[0]['latitude']
-                    start_lon = emp_location.iloc[0]['longitude']
+                    # Try different possible column names for employee location
+                    try:
+                        start_lat = emp_location.iloc[0]['emp_latitude']
+                        start_lon = emp_location.iloc[0]['emp_longitude']
+                    except KeyError:
+                        try:
+                            start_lat = emp_location.iloc[0]['latitude']
+                            start_lon = emp_location.iloc[0]['longitude']
+                        except KeyError:
+                            start_lat, start_lon = None, None
             
             # If no employee location, use center of first circle as starting point
             if start_lat is None or start_lon is None:
@@ -99,11 +106,11 @@ def _display_executive_map(selected_executive, filtered_data):
                     icon=folium.Icon(color='darkgreen', icon='play', prefix='fa')
                 ).add_to(m)
             else:
-                # Add employee starting point marker
+                # Add employee starting point marker in green
                 folium.Marker(
                     location=[start_lat, start_lon],
-                    popup=f"Employee Start: {selected_executive}",
-                    icon=folium.Icon(color='green', icon='play', prefix='fa')
+                    popup=f"🟢 Employee Start: {selected_executive}",
+                    icon=folium.Icon(color='green', icon='home', prefix='fa')
                 ).add_to(m)
             
             # Create route path connecting all visit circles
