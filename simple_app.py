@@ -87,7 +87,7 @@ def _display_executive_map(selected_executive, filtered_data):
             # Check if merchant is assigned to any visit circle
             assigned_circle = None
             for circle in st.session_state.territories:
-                if circle['executive'] == selected_executive and row['merchant_code'] in circle['merchants']:
+                if circle['executive'] == selected_executive and str(row['merchant_code']) in circle['merchants']:
                     assigned_circle = circle
                     break
             
