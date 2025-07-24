@@ -50,27 +50,13 @@ def _display_executive_map(selected_executive, filtered_data):
                     emp_lat = emp_location.iloc[0]['emp_latitude']
                     emp_lon = emp_location.iloc[0]['emp_longitude']
                     
-                    # Add prominent "You are here" flag marker (3x larger than circle markers)
-                    folium.Marker(
-                        location=[emp_lat, emp_lon],
-                        popup=f"🚩 You are here<br><b>{selected_executive}</b><br>Starting Location",
-                        icon=folium.DivIcon(
-                            html=f'<div style="background-color: green; color: white; border-radius: 50%; width: 75px; height: 75px; text-align: center; line-height: 75px; font-weight: bold; font-size: 30px; border: 4px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">🚩</div>',
-                            icon_size=(75, 75),
-                            icon_anchor=(37, 37)
-                        ),
-                        tooltip="Sales Person Starting Location"
-                    ).add_to(m)
-                    
-                except (KeyError, IndexError):
-                    try:
-                        emp_lat = emp_location.iloc[0]['latitude']
-                        emp_lon = emp_location.iloc[0]['longitude']
-                        
+                    # Validate coordinates are numeric and within valid range
+                    if pd.notna(emp_lat) and pd.notna(emp_lon) and \
+                       -90 <= emp_lat <= 90 and -180 <= emp_lon <= 180:
                         # Add prominent "You are here" flag marker (3x larger than circle markers)
                         folium.Marker(
                             location=[emp_lat, emp_lon],
-                            popup=f"🚩 You are here<br><b>{selected_executive}</b><br>Starting Location",
+                            popup=f"🚩 You are here<br><b>{selected_executive}</b><br>Starting Location<br>Lat: {emp_lat:.4f}, Lon: {emp_lon:.4f}",
                             icon=folium.DivIcon(
                                 html=f'<div style="background-color: green; color: white; border-radius: 50%; width: 75px; height: 75px; text-align: center; line-height: 75px; font-weight: bold; font-size: 30px; border: 4px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">🚩</div>',
                                 icon_size=(75, 75),
@@ -78,8 +64,28 @@ def _display_executive_map(selected_executive, filtered_data):
                             ),
                             tooltip="Sales Person Starting Location"
                         ).add_to(m)
+                    
+                except (KeyError, IndexError, ValueError, TypeError):
+                    try:
+                        emp_lat = emp_location.iloc[0]['latitude']
+                        emp_lon = emp_location.iloc[0]['longitude']
                         
-                    except (KeyError, IndexError):
+                        # Validate coordinates are numeric and within valid range
+                        if pd.notna(emp_lat) and pd.notna(emp_lon) and \
+                           -90 <= emp_lat <= 90 and -180 <= emp_lon <= 180:
+                            # Add prominent "You are here" flag marker (3x larger than circle markers)
+                            folium.Marker(
+                                location=[emp_lat, emp_lon],
+                                popup=f"🚩 You are here<br><b>{selected_executive}</b><br>Starting Location<br>Lat: {emp_lat:.4f}, Lon: {emp_lon:.4f}",
+                                icon=folium.DivIcon(
+                                    html=f'<div style="background-color: green; color: white; border-radius: 50%; width: 75px; height: 75px; text-align: center; line-height: 75px; font-weight: bold; font-size: 30px; border: 4px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">🚩</div>',
+                                    icon_size=(75, 75),
+                                    icon_anchor=(37, 37)
+                                ),
+                                tooltip="Sales Person Starting Location"
+                            ).add_to(m)
+                            
+                    except (KeyError, IndexError, ValueError, TypeError):
                         pass
         
         # Add merchant markers
@@ -423,8 +429,25 @@ with st.sidebar:
                     'latitude': 'emp_latitude',
                     'longitude': 'emp_longitude'
                 })
-                st.session_state.employee_data = emp_df_normalized
-                st.success(f"✅ Loaded {len(emp_df)} employee locations")
+                
+                # Ensure latitude and longitude are numeric
+                emp_df_normalized['emp_latitude'] = pd.to_numeric(emp_df_normalized['emp_latitude'], errors='coerce')
+                emp_df_normalized['emp_longitude'] = pd.to_numeric(emp_df_normalized['emp_longitude'], errors='coerce')
+                
+                # Remove rows with invalid coordinates
+                valid_coords = emp_df_normalized[
+                    emp_df_normalized['emp_latitude'].notna() & 
+                    emp_df_normalized['emp_longitude'].notna() &
+                    emp_df_normalized['emp_latitude'].between(-90, 90) &
+                    emp_df_normalized['emp_longitude'].between(-180, 180)
+                ]
+                
+                st.session_state.employee_data = valid_coords
+                st.success(f"✅ Loaded {len(valid_coords)} employee locations")
+                
+                # Show preview of employee data
+                st.write("Employee locations preview:")
+                st.dataframe(valid_coords[['emp_id', 'emp_latitude', 'emp_longitude']].head())
             else:
                 st.error(f"❌ Employee file must contain: {', '.join(required_emp_columns)}")
         except Exception as e:
