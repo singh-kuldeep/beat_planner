@@ -199,7 +199,8 @@ class TerritoryManager:
         # Assign visit circles (last assignment wins in case of overlap)
         for circle in sorted_territories:
             for merchant_code in circle['merchants']:
-                mask = export_df['merchant_code'] == merchant_code
+                # Convert both to string for comparison to handle mixed types
+                mask = export_df['merchant_code'].astype(str) == str(merchant_code)
                 
                 # Only assign visit day if the circle has one (top circles only)
                 if 'visit_day' in circle:
