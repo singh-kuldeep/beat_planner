@@ -366,13 +366,13 @@ class TerritoryManager:
                     first_merchant = remaining_data.iloc[0]
                     center_lat = first_merchant['merchant_latitude']
                     center_lon = first_merchant['merchant_longitude']
-                    merchants_in_circle = [first_merchant['merchant_code']]
+                    merchants_in_circle = [str(first_merchant['merchant_code'])]
                 
                 actual_radius = radius_meters
             
             # Ensure we have at least one merchant
             if not merchants_in_circle and len(remaining_data) > 0:
-                merchants_in_circle = [remaining_data.iloc[0]['merchant_code']]
+                merchants_in_circle = [str(remaining_data.iloc[0]['merchant_code'])]
                 center_lat = remaining_data.iloc[0]['merchant_latitude']
                 center_lon = remaining_data.iloc[0]['merchant_longitude']
                 actual_radius = radius_meters
@@ -392,8 +392,8 @@ class TerritoryManager:
                 
                 circles.append(circle)
                 
-                # Remove assigned merchants
-                remaining_data = remaining_data[~remaining_data['merchant_code'].isin(merchants_in_circle)].reset_index(drop=True)
+                # Remove assigned merchants - convert merchant_code to string for comparison
+                remaining_data = remaining_data[~remaining_data['merchant_code'].astype(str).isin(merchants_in_circle)].reset_index(drop=True)
                 circle_count += 1
             else:
                 # Emergency exit if no merchants can be assigned
@@ -411,7 +411,7 @@ class TerritoryManager:
                         'center_lon': merchant['merchant_longitude'],
                         'radius': radius_meters,  # Use consistent radius
                         'color': color,
-                        'merchants': [merchant['merchant_code']],
+                        'merchants': [str(merchant['merchant_code'])],
                         'merchant_count': 1,
                         'executive': executive
                     }
@@ -505,18 +505,18 @@ class TerritoryManager:
             # If no merchants within radius, take only the single closest merchant to maintain radius compliance
             # This ensures strict radius compliance while still making progress
             closest_index = np.argmin(distances)
-            return [merchant_data.iloc[closest_index]['merchant_code']]
+            return [str(merchant_data.iloc[closest_index]['merchant_code'])]
         
         # Get merchants within radius
         merchants_in_radius = merchant_data[within_radius]
         
         if len(merchants_in_radius) <= max_merchants:
-            return merchants_in_radius['merchant_code'].tolist()
+            return [str(code) for code in merchants_in_radius['merchant_code'].tolist()]
         else:
             # Take closest merchants if too many
             radius_distances = distances[within_radius]
             closest_indices = np.argsort(radius_distances)[:max_merchants]
-            return merchants_in_radius.iloc[closest_indices]['merchant_code'].tolist()
+            return [str(code) for code in merchants_in_radius.iloc[closest_indices]['merchant_code'].tolist()]
     
     def _calculate_distances_vectorized(self, lats, lons, center_lat, center_lon):
         """
